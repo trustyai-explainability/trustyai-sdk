@@ -1,6 +1,8 @@
-# TrustyAI Python SDK
+# TrustyAI SDK
 
-A Python SDK for TrustyAI AI, providing tools for explaining, evaluating, and enhancing AI models.
+[![Ruff](https://github.com/ruivieira/trustyai-sdk/actions/workflows/ruff.yml/badge.svg)](https://github.com/ruivieira/trustyai-sdk/actions/workflows/ruff.yml)
+
+A Python SDK for TrustyAI, providing tools for explaining, evaluating, and enhancing AI models.
 
 ## Installation
 
@@ -11,14 +13,6 @@ Install the package with core functionality and CLI:
 ```bash
 pip install .
 ```
-
-This installs the base dependencies including CLI support:
-- `numpy>=1.20.0`
-- `pandas>=1.3.0` 
-- `scikit-learn>=1.0.0`
-- `pyyaml>=6.0`
-- `click>=8.0.0` (for command-line interface)
-- `rich>=10.0.0` (for enhanced terminal output)
 
 After installation, you can use both the Python API and CLI:
 
