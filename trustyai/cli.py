@@ -2,23 +2,25 @@
 
 import json
 import sys
-from typing import Any, Dict, List, Optional
 
 import click
 from rich.console import Console
 from rich.table import Table
 
 from . import __version__
-from .core.providers import ProviderRegistry
 from .core.models import ExecutionMode
+from .core.providers import ProviderRegistry
+
 
 # Helper function to import eval providers on demand
 def _import_eval_providers():
     """Import evaluation providers to trigger registration."""
     try:
-        from .providers.eval.lm_eval import LMEvalProvider  # This triggers registration via decorator
-        from .providers.eval.lm_eval_local import LocalLMEvalProvider
+        from .providers.eval.lm_eval import (
+            LMEvalProvider,  # This triggers registration via decorator
+        )
         from .providers.eval.lm_eval_kubernetes import KubernetesLMEvalProvider
+        from .providers.eval.lm_eval_local import LocalLMEvalProvider
     except ImportError:
         # Optional providers not available
         pass
@@ -462,7 +464,7 @@ def execute_eval(provider, execution_mode, model, tasks, limit, batch_size, outp
             return
 
         # Execute evaluation
-        click.echo(f"\n🚀 Starting evaluation...")
+        click.echo("\n🚀 Starting evaluation...")
         
         results = provider_instance.evaluate(config)
 
@@ -544,7 +546,7 @@ def execute_eval(provider, execution_mode, model, tasks, limit, batch_size, outp
                     # Here we would add job watching logic
                     console.print("Use 'kubectl get jobs -n {namespace}' to check status manually")
                 else:
-                    console.print(f"You can check job status with:")
+                    console.print("You can check job status with:")
                     console.print(f"  kubectl get jobs -n {namespace}")
                     console.print(f"  kubectl logs -f -n {namespace} job/<job-name>")
                     
@@ -606,7 +608,6 @@ def run_eval_deprecated(model_id, task, provider, metrics, limit, use_gpu, outpu
         execute_args.extend(["--format", format])
         
     # Call the new execute command
-    from click.testing import CliRunner
     ctx = click.get_current_context()
     ctx.invoke(execute_eval, **{
         'provider': provider_name,

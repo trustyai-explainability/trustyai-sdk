@@ -3,8 +3,8 @@
 import abc
 from typing import Any, Dict, List, Optional
 
-from .providers import BaseProvider
 from .models import ExecutionMode
+from .providers import BaseProvider
 
 
 class EvaluationProviderConfig:

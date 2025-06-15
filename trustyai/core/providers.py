@@ -3,14 +3,12 @@ from __future__ import annotations
 
 import abc
 import uuid
-from datetime import datetime
-from enum import Enum
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from .models import ExecutionMode, JobStatus, TrustyAIMetadata, TrustyAIRequest, TrustyAIResponse
 
 if TYPE_CHECKING:
-    from .kubernetes import KubernetesResource
+    pass
 
 
 class BaseProvider(abc.ABC):
@@ -30,7 +28,7 @@ class BaseProvider(abc.ABC):
         self.validator = self._get_validator()
 
     @abc.abstractmethod
-    def _get_validator(self) -> 'BaseValidator':
+    def _get_validator(self) -> BaseValidator:
         """Get the appropriate validator for this provider implementation."""
         pass
 
@@ -39,7 +37,7 @@ class BaseProvider(abc.ABC):
         """Execute the provider operation."""
         pass
 
-    def validate(self) -> 'ValidationResult':
+    def validate(self) -> ValidationResult:
         """Validate system readiness for this provider."""
         return self.validator.validate()
 
@@ -103,7 +101,7 @@ class EvaluationProvider(BaseProvider):
         """Return the provider type."""
         return "evaluation"
 
-    def _get_validator(self) -> 'BaseValidator':
+    def _get_validator(self) -> BaseValidator:
         """Get appropriate validator based on execution mode."""
         if self.execution_mode == ExecutionMode.LOCAL:
             return LocalEvaluationValidator(self.implementation, self.config)
@@ -119,7 +117,7 @@ class EvaluationProvider(BaseProvider):
     def evaluate(self, model: str, tasks: List[str], parameters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Convenience method for evaluation."""
         # Create request from parameters
-        from .models import ModelReference, EvaluationRequest
+        from .models import EvaluationRequest, ModelReference
         
         model_ref = ModelReference(identifier=model, type="huggingface")
         request = EvaluationRequest(
@@ -155,7 +153,7 @@ class ExplainabilityProvider(BaseProvider):
     def get_provider_type(cls) -> str:
         return "explainability"
 
-    def _get_validator(self) -> 'BaseValidator':
+    def _get_validator(self) -> BaseValidator:
         if self.execution_mode == ExecutionMode.LOCAL:
             return LocalExplainabilityValidator(self.implementation, self.config)
         else:
@@ -185,7 +183,7 @@ class BiasDetectionProvider(BaseProvider):
     def get_provider_type(cls) -> str:
         return "bias_detection"
 
-    def _get_validator(self) -> 'BaseValidator':
+    def _get_validator(self) -> BaseValidator:
         if self.execution_mode == ExecutionMode.LOCAL:
             return LocalBiasDetectionValidator(self.implementation, self.config)
         else:
@@ -321,7 +319,7 @@ class KubernetesBiasDetectionExecutor(BaseExecutor):
 class ValidationResult:
     """Result of validation checks."""
 
-    def __init__(self, checks: List['CheckResult']):
+    def __init__(self, checks: List[CheckResult]):
         self.checks = checks
         self.is_valid = all(check.passed for check in checks)
         self.issues = [check for check in checks if not check.passed]

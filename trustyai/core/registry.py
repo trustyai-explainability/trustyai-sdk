@@ -1,6 +1,6 @@
 """Provider registry decorators for TrustyAI."""
 
-from typing import Callable, Dict, Type, TypeVar, cast, Any
+from typing import Callable, Type, TypeVar
 
 from trustyai.core.eval import EvalProvider
 from trustyai.core.providers import BaseProvider, ProviderRegistry
@@ -69,7 +69,7 @@ class ProviderRegistration:
             """
             def decorator(cls: E) -> E:
                 # Set the provider name
-                setattr(cls, "_provider_name", provider_name)
+                cls._provider_name = provider_name
                 # Register with the provider registry
                 ProviderRegistry.register_provider(cls)
                 return cls
@@ -92,7 +92,7 @@ class ProviderRegistration:
             """
             def decorator(cls: E) -> E:
                 # Set the provider name
-                setattr(cls, "_provider_name", provider_name)
+                cls._provider_name = provider_name
                 # Register with the provider registry
                 ProviderRegistry.register_provider(cls)
                 return cls

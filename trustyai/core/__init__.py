@@ -9,9 +9,11 @@ from .kubernetes import (
     KubernetesResourceConverter,
     ServiceConverter,
 )
-from .providers import BaseProvider, ProviderRegistry
 from .models import ExecutionMode
+from .providers import BaseProvider, ProviderRegistry
+
 # Backward compatibility aliases
 Provider = BaseProvider
 DeploymentMode = ExecutionMode
-from .registry import provider as registry_provider, register_eval_provider, provider_registry
+from .registry import provider as registry_provider
+from .registry import provider_registry, register_eval_provider

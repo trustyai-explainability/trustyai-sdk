@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 
+from trustyai.core import DeploymentMode
 from trustyai.core.eval import EvaluationProviderConfig
 from trustyai.core.kubernetes import (
     KubernetesDeployer,
-    KubernetesResource, 
+    KubernetesResource,
     KubernetesResourceConverter,
 )
-from trustyai.core import DeploymentMode
 from trustyai.core.registry import provider_registry
 from trustyai.providers.eval.lm_eval_base import LMEvalProviderBase
 

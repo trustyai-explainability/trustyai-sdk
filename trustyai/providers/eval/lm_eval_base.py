@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, TypedDict
+from typing import Any, TypedDict
 
-from trustyai.core.eval import EvalProvider, EvaluationProviderConfig
 from trustyai.core import DeploymentMode
+from trustyai.core.eval import EvalProvider, EvaluationProviderConfig
 
 
 class LMEvalKwargs(TypedDict, total=False):

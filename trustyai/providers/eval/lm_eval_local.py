@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, cast
+from typing import Any, Dict
 
-from trustyai.core.eval import EvaluationProviderConfig
 from trustyai.core import DeploymentMode
+from trustyai.core.eval import EvaluationProviderConfig
 from trustyai.core.registry import provider_registry
 from trustyai.providers.eval.lm_eval_base import LMEvalProviderBase
 

@@ -3,9 +3,9 @@
 import warnings
 from typing import Any, Dict, List
 
+from trustyai.core import DeploymentMode
 from trustyai.core.eval import EvalProvider, EvaluationProviderConfig
 from trustyai.core.kubernetes import KubernetesResource
-from trustyai.core import DeploymentMode
 from trustyai.core.registry import register_eval_provider
 
 from .lm_eval_kubernetes import KubernetesLMEvalProvider
