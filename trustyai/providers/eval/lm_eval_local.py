@@ -68,10 +68,14 @@ class LocalLMEvalProvider(LMEvalProviderBase):
             raise ValueError("LM Eval provider is not properly initialized")
 
         try:
-            # Get GPU flag from kwargs
-            use_gpu = not kwargs.get("no_gpu", False)
-            device = "cuda" if use_gpu else "cpu"
-            config.device = device
+            # Use device from config, or fallback to no_gpu flag if device not set
+            if hasattr(config, 'device') and config.device:
+                device = config.device
+            else:
+                # Fallback to no_gpu flag for backwards compatibility
+                use_gpu = not kwargs.get("no_gpu", False)
+                device = "cuda" if use_gpu else "cpu"
+                config.device = device
 
             # Import necessary components from lm-eval
             from lm_eval import simple_evaluate

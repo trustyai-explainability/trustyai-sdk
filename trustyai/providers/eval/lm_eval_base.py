@@ -130,9 +130,9 @@ class LMEvalProviderBase(EvalProvider):
         if "namespace" in kwargs:
             print(f"[DEBUG - _parse_args_to_config] Namespace in kwargs: {kwargs['namespace']}")
 
-        # Handle missing GPU flag
+        # Handle device parameter - respect config.device if present, otherwise use no_gpu flag
         use_gpu = not kwargs.get("no_gpu", False)
-        device = "cuda" if use_gpu else "cpu"
+        default_device = "cuda" if use_gpu else "cpu"
 
         # Remove no_gpu from kwargs to avoid duplication
         kwargs_copy = kwargs.copy()
@@ -157,8 +157,9 @@ class LMEvalProviderBase(EvalProvider):
             # Get the config from kwargs
             config = kwargs.pop("config")
 
-            # Update with the correct device and deployment mode
-            config.device = device
+            # Only override device if not explicitly set in config
+            if not hasattr(config, 'device') or config.device is None:
+                config.device = default_device
             config.deployment_mode = deployment_mode
             
             # Debug check for namespace
@@ -170,9 +171,13 @@ class LMEvalProviderBase(EvalProvider):
         elif len(args) == 1:
             # Single argument should be config
             if isinstance(args[0], EvaluationProviderConfig):
-                # Update with the correct device and deployment mode if not explicitly set
+                # Use existing config, only override device if not set or if no_gpu flag is present
                 config = args[0]
-                config.device = device
+                
+                # Only override device if no_gpu flag is present or device is not set
+                if kwargs.get("no_gpu", False) or not hasattr(config, 'device') or config.device is None:
+                    config.device = default_device
+                
                 if "deployment_mode" not in kwargs:
                     config.deployment_mode = deployment_mode
                 
@@ -202,7 +207,7 @@ class LMEvalProviderBase(EvalProvider):
                 model=model_or_id,
                 tasks=[dataset],
                 metrics=metrics,
-                device=device,
+                device=default_device,
                 deployment_mode=deployment_mode,
                 **kwargs_copy
             )

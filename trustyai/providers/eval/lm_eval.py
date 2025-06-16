@@ -14,14 +14,28 @@ from .lm_eval_local import LocalLMEvalProvider
 
 @register_eval_provider
 class LMEvalProvider(EvalProvider):
-    """LM Evaluation Harness provider for TrustyAI (Legacy).
+    """LM Evaluation Harness provider for TrustyAI.
     
-    This is a backwards-compatibility wrapper that combines the functionality
-    of the LocalLMEvalProvider and KubernetesLMEvalProvider classes.
+    This provider automatically delegates to the appropriate implementation
+    (LocalLMEvalProvider or KubernetesLMEvalProvider) based on the deployment_mode
+    specified in your configuration.
     
-    For new code, you should use the specific provider implementations directly:
-    - LocalLMEvalProvider for local evaluation
-    - KubernetesLMEvalProvider for Kubernetes deployment
+    Usage:
+        # Local evaluation (default)
+        config = EvaluationProviderConfig(
+            deployment_mode=DeploymentMode.LOCAL,
+            # ... other config
+        )
+        provider = Providers.eval.LMEvalProvider()
+        results = provider.evaluate(config)
+        
+        # Kubernetes evaluation
+        config = EvaluationProviderConfig(
+            deployment_mode=DeploymentMode.KUBERNETES,
+            # ... other config
+        )
+        provider = Providers.eval.LMEvalProvider()
+        results = provider.evaluate(config)
     
     Note: When using Kubernetes deployment mode, only the LMEvalJob custom resource
     will be returned, without any supporting Deployment or Service resources.
@@ -29,12 +43,6 @@ class LMEvalProvider(EvalProvider):
 
     def __init__(self) -> None:
         """Initialize the LM Eval provider wrapper."""
-        warnings.warn(
-            "The LMEvalProvider class is deprecated and will be removed in a future version. "
-            "Use LocalLMEvalProvider or KubernetesLMEvalProvider directly instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
         self._local_provider = LocalLMEvalProvider()
         self._kubernetes_provider = KubernetesLMEvalProvider()
         
@@ -52,8 +60,8 @@ class LMEvalProvider(EvalProvider):
     def get_description(cls) -> str:
         """Return the description of the provider."""
         return (
-            "LM Evaluation Harness for language model evaluation "
-            "(Legacy - use LocalLMEvalProvider or KubernetesLMEvalProvider instead)"
+            "LM Evaluation Harness for language model evaluation. "
+            "Automatically delegates to local or Kubernetes implementation based on deployment mode."
         )
 
     def initialize(self, **kwargs: Any) -> None:
