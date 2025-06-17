@@ -74,7 +74,8 @@ class LMEvalProvider(EvalProvider):
         self._local_provider.initialize(**kwargs)
         self._kubernetes_provider.initialize(**kwargs)
 
-    def get_supported_deployment_modes(self) -> List[DeploymentMode]:
+    @property
+    def supported_deployment_modes(self) -> List[DeploymentMode]:
         """Return the deployment modes supported by this provider."""
         return [DeploymentMode.LOCAL, DeploymentMode.KUBERNETES]
 

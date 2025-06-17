@@ -53,11 +53,11 @@ class LMEvalProviderBase(EvalProvider):
             self._lm_eval_module = lm_eval
             # Setup logging for lm-eval
             setup_logging(kwargs.get("log_level", "INFO"))
-        except ImportError:
-            raise ImportError(  # noqa: B904, TRY003
-                "lm-eval package is required for LMEvalProvider. "  # noqa: EM101
+        except ImportError as exc:
+            raise ImportError(
+                "lm-eval package is required for LMEvalProvider. "
                 "Install it with: pip install trustyai[eval]",
-            )
+            ) from exc
 
         # Initialize available metrics
         self._load_available_metrics()
@@ -112,7 +112,7 @@ class LMEvalProviderBase(EvalProvider):
             self._load_available_metrics()
 
         return self._available_metrics or []
-    
+
     def _parse_args_to_config(self, *args: Any, **kwargs) -> EvaluationProviderConfig:  # type: ignore
         """Parse arguments into a configuration object.
 
@@ -161,7 +161,7 @@ class LMEvalProviderBase(EvalProvider):
             if not hasattr(config, 'device') or config.device is None:
                 config.device = default_device
             config.deployment_mode = deployment_mode
-            
+
             # Debug check for namespace
             print(f"[DEBUG - _parse_args_to_config] Args=0: has namespace? {'namespace' in config.additional_params}")
             if "namespace" in config.additional_params:
@@ -173,14 +173,14 @@ class LMEvalProviderBase(EvalProvider):
             if isinstance(args[0], EvaluationProviderConfig):
                 # Use existing config, only override device if not set or if no_gpu flag is present
                 config = args[0]
-                
+
                 # Only override device if no_gpu flag is present or device is not set
                 if kwargs.get("no_gpu", False) or not hasattr(config, 'device') or config.device is None:
                     config.device = default_device
-                
+
                 if "deployment_mode" not in kwargs:
                     config.deployment_mode = deployment_mode
-                
+
                 # Debug check for namespace
                 print(f"[DEBUG - _parse_args_to_config] Args=1: has namespace? {'namespace' in config.additional_params}")
                 if "namespace" in config.additional_params:
@@ -211,10 +211,10 @@ class LMEvalProviderBase(EvalProvider):
                 deployment_mode=deployment_mode,
                 **kwargs_copy
             )
-            
+
             # Debug check for namespace
             print(f"[DEBUG - _parse_args_to_config] Args={len(args)}: has namespace? {'namespace' in config.additional_params}")
             if "namespace" in config.additional_params:
                 print(f"[DEBUG - _parse_args_to_config] Namespace value: {config.additional_params['namespace']}")
 
-            return config 
+            return config

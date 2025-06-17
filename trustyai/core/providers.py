@@ -16,7 +16,7 @@ class BaseProvider(abc.ABC):
 
     def __init__(self, implementation: str, execution_mode: str = "local", **config: Any):
         """Initialise provider with implementation and execution mode.
-        
+
         Args:
             implementation: Specific implementation name (e.g., "lm-evaluation-harness")
             execution_mode: Execution mode ("local" or "kubernetes")
@@ -65,14 +65,15 @@ class BaseProvider(abc.ABC):
         """Return the description of the provider."""
         return cls.__doc__ or "No description available"
 
-    def get_supported_deployment_modes(self) -> List[ExecutionMode]:
+    @property
+    def supported_deployment_modes(self) -> List[ExecutionMode]:
         """Return the deployment modes supported by this provider."""
         # Default implementation - subclasses should override
         return [ExecutionMode.LOCAL]
 
     def is_mode_supported(self, mode: ExecutionMode) -> bool:
         """Check if a specific deployment mode is supported."""
-        return mode in self.get_supported_deployment_modes()
+        return mode in self.supported_deployment_modes
 
 
 class EvaluationProvider(BaseProvider):
@@ -131,7 +132,8 @@ class EvaluationProvider(BaseProvider):
         response = self.execute(request)  # type: ignore[arg-type]
         return response.results if response.results else {}
 
-    def get_supported_deployment_modes(self) -> List[ExecutionMode]:
+    @property
+    def supported_deployment_modes(self) -> List[ExecutionMode]:
         """Return supported deployment modes."""
         return [ExecutionMode.LOCAL, ExecutionMode.KUBERNETES]
 
@@ -162,7 +164,8 @@ class ExplainabilityProvider(BaseProvider):
     def execute(self, request: TrustyAIRequest) -> TrustyAIResponse:
         return self.executor.execute_explanation(request)
 
-    def get_supported_deployment_modes(self) -> List[ExecutionMode]:
+    @property
+    def supported_deployment_modes(self) -> List[ExecutionMode]:
         return [ExecutionMode.LOCAL, ExecutionMode.KUBERNETES]
 
 
@@ -192,7 +195,8 @@ class BiasDetectionProvider(BaseProvider):
     def execute(self, request: TrustyAIRequest) -> TrustyAIResponse:
         return self.executor.execute_bias_detection(request)
 
-    def get_supported_deployment_modes(self) -> List[ExecutionMode]:
+    @property
+    def supported_deployment_modes(self) -> List[ExecutionMode]:
         return [ExecutionMode.LOCAL, ExecutionMode.KUBERNETES]
 
 
@@ -474,12 +478,12 @@ class ProviderRegistry:
         try:
             # Try to create instance without arguments first (for LMEvalProviderBase)
             instance = provider_class()
-            return [mode.value for mode in instance.get_supported_deployment_modes()]
+            return [mode.value for mode in instance.supported_deployment_modes]
         except TypeError:
             # If that fails, try with a default implementation argument (for BaseProvider)
             try:
                 instance = provider_class("default")
-                return [mode.value for mode in instance.get_supported_deployment_modes()]
+                return [mode.value for mode in instance.supported_deployment_modes]
             except Exception:
                 # If both fail, return a default
                 return ["local"]

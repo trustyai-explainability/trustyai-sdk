@@ -390,7 +390,7 @@ def execute_eval(provider, execution_mode, model, tasks, limit, batch_size, outp
         
         # Validate execution mode support
         if not provider_instance.is_mode_supported(requested_mode):
-            supported_modes = [mode.value for mode in provider_instance.get_supported_deployment_modes()]
+            supported_modes = [mode.value for mode in provider_instance.supported_deployment_modes]
             click.echo(f"Error: Provider '{provider}' does not support '{execution_mode}' execution mode")
             click.echo(f"Supported modes: {', '.join(supported_modes)}")
             return

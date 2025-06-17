@@ -1,7 +1,7 @@
 """Evaluation provider infrastructure for TrustyAI."""
 
 import abc
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from .models import ExecutionMode
 from .providers import BaseProvider
@@ -14,9 +14,9 @@ class EvaluationProviderConfig:
         self,
         evaluation_name: str,
         model: str,
-        tasks: List[str],
-        limit: Optional[int] = None,
-        metrics: Optional[List[str]] = None,
+        tasks: list[str],
+        limit: int | None = None,
+        metrics: list[str] | None = None,
         device: str = "cuda",
         deployment_mode: ExecutionMode = ExecutionMode.LOCAL,
         **kwargs: Any,
@@ -58,8 +58,13 @@ class EvaluationProviderConfig:
 class EvalProvider(BaseProvider):
     """Base class for model evaluation providers."""
 
-    def __init__(self, implementation: str = "default", execution_mode: str = "local", **config: Any):
-        """Initialize the evaluation provider.""" 
+    def __init__(
+        self,
+        implementation: str = "default",
+        execution_mode: str = "local",
+        **config: Any,
+    ) -> None:
+        """Initialize the evaluation provider."""
         super().__init__(implementation, execution_mode, **config)
 
     @classmethod
@@ -68,7 +73,7 @@ class EvalProvider(BaseProvider):
         return "eval"
 
     def _get_validator(self) -> Any:
-        """Get validator - stub implementation.""" 
+        """Get validator - stub implementation."""
         from .providers import LocalEvaluationValidator
         return LocalEvaluationValidator(self.implementation, self.config)
 
@@ -77,13 +82,14 @@ class EvalProvider(BaseProvider):
         # This is a compatibility layer for existing code
         # Real implementation should be in concrete subclasses
         return self.evaluate(request)
-    
-    def get_supported_deployment_modes(self) -> List[ExecutionMode]:
+
+    @property
+    def supported_deployment_modes(self) -> list[ExecutionMode]:
         """Return deployment modes supported by default."""
         return [ExecutionMode.LOCAL]
 
     @abc.abstractmethod
-    def evaluate(self, *args: Any, **kwargs: Any) -> Dict[str, Any]:
+    def evaluate(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
         """Evaluate a model on tasks with specified metrics.
 
         Supports:
@@ -97,22 +103,20 @@ class EvalProvider(BaseProvider):
         Returns:
             Dictionary of evaluation results
         """
-        pass
+
 
     @abc.abstractmethod
-    def list_available_datasets(self) -> List[str]:
+    def list_available_datasets(self) -> list[str]:
         """List available evaluation datasets for this provider.
 
         Returns:
             List of dataset names supported by this provider
         """
-        pass
 
     @abc.abstractmethod
-    def list_available_metrics(self) -> List[str]:
+    def list_available_metrics(self) -> list[str]:
         """List available evaluation metrics for this provider.
 
         Returns:
             List of metric names supported by this provider
         """
-        pass

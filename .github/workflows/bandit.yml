@@ -1,0 +1,37 @@
+name: Bandit Security Scan
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  bandit:
+    runs-on: ubuntu-latest
+    name: Security Scan with Bandit
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install bandit
+      run: pip install bandit[toml]
+      
+    - name: Run bandit security scan
+      run: bandit -r trustyai/ -f json -o bandit-report.json
+      
+    - name: Run bandit security scan (human readable)
+      run: bandit -r trustyai/ -ll
+      
+    - name: Upload bandit report
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: bandit-security-report
+        path: bandit-report.json 

@@ -20,7 +20,8 @@ class LocalLMEvalProvider(LMEvalProviderBase):
     pip install trustyai[eval]
     """
     
-    def get_supported_deployment_modes(self) -> list[DeploymentMode]:
+    @property
+    def supported_deployment_modes(self) -> list[DeploymentMode]:
         """Return the deployment modes supported by this provider."""
         return [DeploymentMode.LOCAL]
     
