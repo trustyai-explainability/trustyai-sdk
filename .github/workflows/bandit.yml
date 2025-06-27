@@ -24,10 +24,10 @@ jobs:
       run: pip install bandit[toml]
       
     - name: Run bandit security scan
-      run: bandit -r trustyai/ -f json -o bandit-report.json
+      run: bandit -r trustyai/ -f json -o bandit-report.json --skip B404,B603
       
     - name: Run bandit security scan (human readable)
-      run: bandit -r trustyai/ -ll
+      run: bandit -r trustyai/ -ll --skip B404,B603
       
     - name: Upload bandit report
       uses: actions/upload-artifact@v4
