@@ -5,48 +5,44 @@ on:
     branches: [ main, develop ]
   pull_request:
     branches: [ main, develop ]
+  workflow_dispatch:
 
 jobs:
-  bandit:
+  bandit-scan:
     runs-on: ubuntu-latest
-    name: Security Scan with Bandit
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+      checks: write
     
     steps:
     - name: Checkout
       uses: actions/checkout@v4
       
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
+        cache: 'pip'
         
-    - name: Install bandit
-      run: pip install bandit[toml] sarif-om
-      
-    - name: Run bandit security scan (JSON)
-      run: bandit -r trustyai/ -f json -o bandit-report.json --skip B404,B603
-      continue-on-error: true
-      
-    - name: Run bandit security scan (SARIF)
-      run: bandit -r trustyai/ -f sarif -o bandit-report.sarif --skip B404,B603
-      continue-on-error: true
-      
-    - name: Run bandit security scan (human readable)
-      run: bandit -r trustyai/ -ll --skip B404,B603
-      continue-on-error: true
+    - name: Run Bandit Security Scan
+      uses: PyCQA/bandit-action@v1
+      with:
+        targets: 'trustyai/'
+        configfile: 'pyproject.toml'
       
     - name: Upload SARIF results to GitHub Security tab
       uses: github/codeql-action/upload-sarif@v3
-      if: always()
       with:
-        sarif_file: bandit-report.sarif
-        category: bandit
+        sarif_file: results.sarif
+        category: bandit-security-scan
+      continue-on-error: true
       
-    - name: Upload bandit reports
+    - name: Upload SARIF as artifact
       uses: actions/upload-artifact@v4
-      if: always()
       with:
-        name: bandit-security-reports
-        path: |
-          bandit-report.json
-          bandit-report.sarif 
+        name: bandit-sarif-results
+        path: results.sarif
+        retention-days: 30
+      continue-on-error: true 
