@@ -1,6 +1,6 @@
 """Unit tests for Kubernetes resource handling."""
 
-from typing import Any, dict
+from typing import Any, Dict
 from unittest.mock import patch
 
 import pytest
@@ -67,7 +67,7 @@ class TestKubernetesResource:
 class MockConverter(KubernetesResourceConverter):
     """Mock converter for testing the abstract base class."""
 
-    def convert(self, config: dict[str, Any]) -> KubernetesResource:
+    def convert(self, config: Dict[str, Any]) -> KubernetesResource:
         """Mock implementation of convert method."""
         return KubernetesResource(
             api_version="v1",
