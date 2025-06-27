@@ -52,7 +52,7 @@ class BaseProvider(abc.ABC):
 
     @classmethod
     @abc.abstractmethod
-    def get_provider_type(cls) -> str:
+    def provider_type(cls) -> str:
         """Return the type of provider (e.g., 'evaluation', 'explainability')."""
 
     @classmethod
@@ -98,7 +98,7 @@ class EvaluationProvider(BaseProvider):
             raise ValueError(f"Unsupported execution mode: {execution_mode}")
 
     @classmethod
-    def get_provider_type(cls) -> str:
+    def provider_type(cls) -> str:
         """Return the provider type."""
         return "evaluation"
 
@@ -152,7 +152,7 @@ class ExplainabilityProvider(BaseProvider):
             raise ValueError(f"Unsupported execution mode: {execution_mode}")
 
     @classmethod
-    def get_provider_type(cls) -> str:
+    def provider_type(cls) -> str:
         return "explainability"
 
     def _get_validator(self) -> BaseValidator:
@@ -183,7 +183,7 @@ class BiasDetectionProvider(BaseProvider):
             raise ValueError(f"Unsupported execution mode: {execution_mode}")
 
     @classmethod
-    def get_provider_type(cls) -> str:
+    def provider_type(cls) -> str:
         return "bias_detection"
 
     def _get_validator(self) -> BaseValidator:
@@ -491,7 +491,7 @@ class ProviderRegistry:
     @classmethod
     def register_provider(cls, provider_class: type[BaseProvider]) -> None:
         """Register a provider implementation."""
-        provider_type = provider_class.get_provider_type()
+        provider_type = provider_class.provider_type()
         provider_name = provider_class.get_provider_name()
 
         if provider_type not in cls._providers:
@@ -560,6 +560,6 @@ def register_provider(provider_class: type[BaseProvider]) -> type[BaseProvider]:
 
 def register_eval_provider(provider_class: type[BaseProvider]) -> type[BaseProvider]:
     """Decorator specifically for evaluation providers."""
-    if provider_class.get_provider_type() != "evaluation":
+    if provider_class.provider_type() != "evaluation":
         raise ValueError("Provider must be of type 'evaluation' to use this decorator")
     return register_provider(provider_class)

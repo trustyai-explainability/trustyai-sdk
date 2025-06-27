@@ -52,7 +52,7 @@ class LMEvalProvider(EvalProvider):
         return "lm_eval_harness"
 
     @classmethod
-    def get_provider_type(cls) -> str:
+    def provider_type(cls) -> str:
         """Return the type of provider."""
         return "eval"
         

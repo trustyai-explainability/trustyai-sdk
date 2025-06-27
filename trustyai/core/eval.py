@@ -54,6 +54,46 @@ class EvaluationProviderConfig:
         """
         return self.additional_params.get(key, default)
 
+    def __str__(self) -> str:
+        """Return a formatted string representation of the configuration."""
+        lines = [
+            "EvaluationProviderConfig:",
+            f"  Name: {self.evaluation_name}",
+            f"  Model: {self.model}",
+            f"  Tasks: {self.tasks}",
+            f"  Deployment Mode: {self.deployment_mode.value}",
+            f"  Device: {self.device}",
+        ]
+        
+        # Add optional parameters if they have values
+        if self.limit is not None:
+            lines.append(f"  Limit: {self.limit}")
+        
+        if self.metrics:
+            lines.append(f"  Metrics: {self.metrics}")
+        
+        # Add any additional parameters
+        if self.additional_params:
+            lines.append("  Additional Parameters:")
+            for key, value in sorted(self.additional_params.items()):
+                lines.append(f"    {key}: {value}")
+        
+        return "\n".join(lines)
+
+    def __repr__(self) -> str:
+        """Return a detailed string representation suitable for debugging."""
+        return (
+            f"EvaluationProviderConfig("
+            f"evaluation_name='{self.evaluation_name}', "
+            f"model='{self.model}', "
+            f"tasks={self.tasks}, "
+            f"limit={self.limit}, "
+            f"metrics={self.metrics}, "
+            f"device='{self.device}', "
+            f"deployment_mode={self.deployment_mode}, "
+            f"additional_params={self.additional_params})"
+        )
+
 
 class EvalProvider(BaseProvider):
     """Base class for model evaluation providers."""
@@ -68,7 +108,7 @@ class EvalProvider(BaseProvider):
         super().__init__(implementation, execution_mode, **config)
 
     @classmethod
-    def get_provider_type(cls) -> str:
+    def provider_type(cls) -> str:
         """Return the type of provider."""
         return "eval"
 
