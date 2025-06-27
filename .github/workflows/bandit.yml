@@ -21,17 +21,32 @@ jobs:
         python-version: '3.11'
         
     - name: Install bandit
-      run: pip install bandit[toml]
+      run: pip install bandit[toml] sarif-om
       
-    - name: Run bandit security scan
+    - name: Run bandit security scan (JSON)
       run: bandit -r trustyai/ -f json -o bandit-report.json --skip B404,B603
+      continue-on-error: true
+      
+    - name: Run bandit security scan (SARIF)
+      run: bandit -r trustyai/ -f sarif -o bandit-report.sarif --skip B404,B603
+      continue-on-error: true
       
     - name: Run bandit security scan (human readable)
       run: bandit -r trustyai/ -ll --skip B404,B603
+      continue-on-error: true
       
-    - name: Upload bandit report
+    - name: Upload SARIF results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: bandit-report.sarif
+        category: bandit
+      
+    - name: Upload bandit reports
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: bandit-security-report
-        path: bandit-report.json 
+        name: bandit-security-reports
+        path: |
+          bandit-report.json
+          bandit-report.sarif 
