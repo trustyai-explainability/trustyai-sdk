@@ -190,8 +190,8 @@ def list_eval_datasets(provider):
         datasets = provider_instance.list_available_datasets()
 
         if not datasets:
-            if provider and provider == "lm_eval_harness":
-                click.echo("The lm_eval_harness provider does not manage datasets.")
+            if provider and provider == "lm-eval-harness":
+                click.echo("The lm-eval-harness provider does not manage datasets.")
                 click.echo(
                     "Please refer to the lm-evaluation-harness documentation for available tasks."
                 )
@@ -343,11 +343,11 @@ def execute_eval(provider, execution_mode, model, tasks, limit, batch_size, outp
     
     Examples:
       # Local execution
-      trustyai eval execute --provider lm-evaluation-harness --execution-mode local \\
+      trustyai eval execute --provider lm-eval-harness --execution-mode local \\
         --model "hf/microsoft/DialoGPT-medium" --tasks "hellaswag,arc_easy" --limit 10
       
       # Kubernetes execution  
-      trustyai eval execute --provider lm-evaluation-harness --execution-mode kubernetes \\
+      trustyai eval execute --provider lm-eval-harness --execution-mode kubernetes \\
         --model "hf/microsoft/DialoGPT-medium" --tasks "hellaswag,arc_easy" \\
         --namespace trustyai-eval --cpu 4 --memory 8Gi
         
@@ -590,7 +590,7 @@ def run_eval_deprecated(model_id, task, provider, metrics, limit, use_gpu, outpu
     
     # Convert to new execute command format for backward compatibility
     tasks_str = task
-    provider_name = provider or "lm-evaluation-harness"
+    provider_name = provider or "lm-eval-harness"
     
     # Build equivalent execute command
     execute_args = [
@@ -666,7 +666,7 @@ def deploy_eval_deprecated(model_id, task, provider, limit, use_gpu, output, app
     
     # Convert to new execute command format for backward compatibility  
     tasks_str = task
-    provider_name = provider or "lm-evaluation-harness"
+    provider_name = provider or "lm-eval-harness"
     
     # Call the new execute command
     ctx = click.get_current_context()

@@ -41,7 +41,7 @@ class ProviderNamespace:
             A sanitised name suitable for use as a Python attribute
         """
         # Handle specific cases
-        if name == "lm_eval_harness":
+        if name == "lm-eval-harness":
             return "LMEvalProvider"
         
         # Convert snake_case to PascalCase and add Provider suffix if needed

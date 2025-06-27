@@ -85,7 +85,6 @@ class LMEvalJobConverter(KubernetesResourceConverter):
         )
 
 
-@provider_registry.eval.register_kubernetes("lm-eval")
 class KubernetesLMEvalProvider(LMEvalProviderBase):
     """Kubernetes implementation of LM Evaluation Harness for TrustyAI.
 

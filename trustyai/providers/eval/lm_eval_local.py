@@ -10,7 +10,6 @@ from trustyai.core.registry import provider_registry
 from trustyai.providers.eval.lm_eval_base import LMEvalProviderBase
 
 
-@provider_registry.eval.register_local("lm-eval")
 class LocalLMEvalProvider(LMEvalProviderBase):
     """Local implementation of LM Evaluation Harness for TrustyAI.
     
