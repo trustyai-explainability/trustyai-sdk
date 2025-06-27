@@ -545,10 +545,8 @@ class ProviderRegistry:
         return result
 
 
-# Auto-register the core providers
-ProviderRegistry.register_provider(EvaluationProvider)
-ProviderRegistry.register_provider(ExplainabilityProvider)
-ProviderRegistry.register_provider(BiasDetectionProvider)
+# Note: Generic providers are not auto-registered to avoid cluttering the provider list
+# Only concrete implementations should be registered
 
 
 # Decorator for easy provider registration

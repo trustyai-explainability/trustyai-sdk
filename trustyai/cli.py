@@ -104,7 +104,7 @@ def info(verbose):
         click.echo("  - Python package for explainable and fair AI")
         click.echo("  - Supports model explanations and fairness metrics")
 
-        # List available providers
+        # List available providers (exclude generic base providers)
         providers = ProviderRegistry.list_providers()
         if providers:
             console = Console()
@@ -114,10 +114,15 @@ def info(verbose):
             table.add_column("Provider Name", style="cyan")
             table.add_column("Type", style="green")
 
-            # Add rows for each provider
+            # Filter out generic providers and add rows for concrete implementations only
+            generic_provider_names = {"EvaluationProvider", "ExplainabilityProvider", "BiasDetectionProvider"}
+            
             for provider_type, provider_list in providers.items():
                 for provider_info in provider_list:
-                    table.add_row(provider_info["name"], provider_type)
+                    provider_name = provider_info["name"]
+                    # Only show concrete implementations, not generic base classes
+                    if provider_name not in generic_provider_names:
+                        table.add_row(provider_name, provider_type)
 
             # Print the table
             console.print(table)
