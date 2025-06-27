@@ -105,7 +105,7 @@ class KubernetesResourceConverter(abc.ABC):
         """
         pass
 
-    def convert_to_yaml(self, config: Dict[str, Any]) -> str:
+    def to_yaml(self, config: Dict[str, Any]) -> str:
         """Convert a configuration to YAML representation.
 
         Args:
