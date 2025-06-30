@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "trustyai"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 license = {text = "Apache-2.0"}
 authors = [
     {name = "Rui Vieira", email = "rui@redhat.com"},
@@ -33,7 +33,7 @@ dependencies = [
     "packaging>=23.0.0",
     "pydantic-settings>=2.0.0",
 ]
-dynamic = ["version"]
+version = "1.0.0a1"
 
 [project.optional-dependencies]
 eval = [
@@ -63,11 +63,7 @@ Homepage = "https://github.com/trustyai-explainability/trustyai-sdk"
 Repository = "https://github.com/trustyai-explainability/trustyai-sdk.git"
 Documentation = "https://github.com/trustyai-explainability/trustyai-sdk"
 
-[tool.hatch.version]
-source = "vcs"
 
-[tool.hatch.build.hooks.vcs]
-version-file = "trustyai/_version.py"
 
 [tool.hatch.build.targets.sdist]
 exclude = [

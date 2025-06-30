@@ -29,7 +29,7 @@ Example usage with the Providers class:
     # provider = Providers.bias_detection.SomeProvider()
 """
 
-__version__ = "2.0.0a1"
+__version__ = "1.0.0a1"
 
 # Import provider system
 from trustyai.core.providers import ProviderRegistry
