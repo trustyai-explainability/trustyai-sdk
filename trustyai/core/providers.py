@@ -6,6 +6,10 @@ import uuid
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from .models import ExecutionMode, JobStatus, TrustyAIMetadata, TrustyAIRequest, TrustyAIResponse
+from .validators import (
+    BaseValidator, LocalValidator, KubernetesValidator,
+    ValidationResult, create_validator
+)
 
 if TYPE_CHECKING:
     pass
@@ -14,23 +18,25 @@ if TYPE_CHECKING:
 class BaseProvider(abc.ABC):
     """Base provider interface for all TrustyAI capabilities following ADR-0010."""
 
-    def __init__(self, implementation: str, execution_mode: str = "local", **config: Any):
+    def __init__(self, implementation: str, execution_mode: str = "local", k8s_client=None, **config: Any):
         """Initialise provider with implementation and execution mode.
 
         Args:
             implementation: Specific implementation name (e.g., "lm-evaluation-harness")
             execution_mode: Execution mode ("local" or "kubernetes")
+            k8s_client: Optional Kubernetes client for Kubernetes execution
             **config: Provider-specific configuration
         """
         self.implementation = implementation
         self.execution_mode = ExecutionMode(execution_mode)
+        self.k8s_client = k8s_client
         self.config = config
         self.validator = self._get_validator()
 
     @abc.abstractmethod
     def _get_validator(self) -> BaseValidator:
         """Get the appropriate validator for this provider implementation."""
-        pass
+        return create_validator(self.implementation, self.execution_mode, self.config, self.k8s_client)
 
     @abc.abstractmethod
     def execute(self, request: TrustyAIRequest) -> TrustyAIResponse:
@@ -102,15 +108,6 @@ class EvaluationProvider(BaseProvider):
         """Return the provider type."""
         return "evaluation"
 
-    def _get_validator(self) -> BaseValidator:
-        """Get appropriate validator based on execution mode."""
-        if self.execution_mode == ExecutionMode.LOCAL:
-            return LocalEvaluationValidator(self.implementation, self.config)
-        elif self.execution_mode == ExecutionMode.KUBERNETES:
-            return KubernetesEvaluationValidator(self.implementation, self.config)
-        else:
-            raise ValueError(f"No validator for execution mode: {self.execution_mode}")
-
     def execute(self, request: TrustyAIRequest) -> TrustyAIResponse:
         """Execute evaluation using the configured executor."""
         return self.executor.execute_evaluation(request)
@@ -155,12 +152,6 @@ class ExplainabilityProvider(BaseProvider):
     def provider_type(cls) -> str:
         return "explainability"
 
-    def _get_validator(self) -> BaseValidator:
-        if self.execution_mode == ExecutionMode.LOCAL:
-            return LocalExplainabilityValidator(self.implementation, self.config)
-        else:
-            return KubernetesExplainabilityValidator(self.implementation, self.config)
-
     def execute(self, request: TrustyAIRequest) -> TrustyAIResponse:
         return self.executor.execute_explanation(request)
 
@@ -185,12 +176,6 @@ class BiasDetectionProvider(BaseProvider):
     @classmethod
     def provider_type(cls) -> str:
         return "bias_detection"
-
-    def _get_validator(self) -> BaseValidator:
-        if self.execution_mode == ExecutionMode.LOCAL:
-            return LocalBiasDetectionValidator(self.implementation, self.config)
-        else:
-            return KubernetesBiasDetectionValidator(self.implementation, self.config)
 
     def execute(self, request: TrustyAIRequest) -> TrustyAIResponse:
         return self.executor.execute_bias_detection(request)
@@ -319,151 +304,7 @@ class KubernetesBiasDetectionExecutor(BaseExecutor):
         return self.execute_bias_detection(request)
 
 
-# Validator system as described in ADR
-class ValidationResult:
-    """Result of validation checks."""
-
-    def __init__(self, checks: List[CheckResult]):
-        self.checks = checks
-        self.is_valid = all(check.passed for check in checks)
-        self.issues = [check for check in checks if not check.passed]
-
-
-class CheckResult:
-    """Result of an individual validation check."""
-
-    def __init__(self, name: str, passed: bool, message: str, suggestion: Optional[str] = None):
-        self.name = name
-        self.passed = passed
-        self.message = message
-        self.suggestion = suggestion
-        self.category = "system"
-
-
-class BaseValidator(abc.ABC):
-    """Base validator for provider implementations."""
-
-    def __init__(self, implementation: str, config: Dict[str, Any]):
-        self.implementation = implementation
-        self.config = config
-
-    @abc.abstractmethod
-    def validate(self) -> ValidationResult:
-        """Perform validation checks."""
-        pass
-
-
-class LocalEvaluationValidator(BaseValidator):
-    """Validator for local evaluation providers."""
-
-    def validate(self) -> ValidationResult:
-        """Validate local evaluation requirements."""
-        checks = [
-            self._check_implementation_available(),
-            self._check_system_resources(),
-            self._check_model_access()
-        ]
-        return ValidationResult(checks)
-
-    def _check_implementation_available(self) -> CheckResult:
-        """Check if the evaluation implementation is available."""
-        # TODO: Check if lm-eval, ragas, etc. are installed
-        return CheckResult(
-            "implementation_available",
-            True,
-            f"{self.implementation} is available",
-            None
-        )
-
-    def _check_system_resources(self) -> CheckResult:
-        """Check system resources."""
-        return CheckResult(
-            "system_resources",
-            True,
-            "Sufficient system resources available",
-            None
-        )
-
-    def _check_model_access(self) -> CheckResult:
-        """Check model accessibility."""
-        return CheckResult(
-            "model_access",
-            True,
-            "Model access validated",
-            None
-        )
-
-
-class KubernetesEvaluationValidator(BaseValidator):
-    """Validator for Kubernetes evaluation providers."""
-
-    def validate(self) -> ValidationResult:
-        """Validate Kubernetes evaluation requirements."""
-        checks = [
-            self._check_cluster_connectivity(),
-            self._check_trustyai_operator(),
-            self._check_namespace_exists(),
-            self._check_resource_quotas()
-        ]
-        return ValidationResult(checks)
-
-    def _check_cluster_connectivity(self) -> CheckResult:
-        """Verify cluster connectivity."""
-        return CheckResult(
-            "cluster_connectivity",
-            True,  # TODO: Implement actual check
-            "Kubernetes cluster is accessible",
-            "Check your kubeconfig file and cluster status"
-        )
-
-    def _check_trustyai_operator(self) -> CheckResult:
-        """Check TrustyAI operator presence."""
-        return CheckResult(
-            "trustyai_operator",
-            True,  # TODO: Implement actual check
-            "TrustyAI operator is available",
-            "Install TrustyAI operator: kubectl apply -f trustyai-operator.yaml"
-        )
-
-    def _check_namespace_exists(self) -> CheckResult:
-        """Check if target namespace exists."""
-        namespace = self.config.get('namespace', 'trustyai')
-        return CheckResult(
-            "namespace_exists",
-            True,  # TODO: Implement actual check
-            f"Namespace '{namespace}' exists",
-            f"Create namespace: kubectl create namespace {namespace}"
-        )
-
-    def _check_resource_quotas(self) -> CheckResult:
-        """Check resource availability."""
-        return CheckResult(
-            "resource_quotas",
-            True,  # TODO: Implement actual check
-            "Sufficient cluster resources available",
-            "Check resource quotas and limits in your namespace"
-        )
-
-
-# Placeholder validators for other providers
-class LocalExplainabilityValidator(BaseValidator):
-    def validate(self) -> ValidationResult:
-        return ValidationResult([CheckResult("explainability_local", True, "Local explainability ready")])
-
-
-class KubernetesExplainabilityValidator(BaseValidator):
-    def validate(self) -> ValidationResult:
-        return ValidationResult([CheckResult("explainability_k8s", True, "Kubernetes explainability ready")])
-
-
-class LocalBiasDetectionValidator(BaseValidator):
-    def validate(self) -> ValidationResult:
-        return ValidationResult([CheckResult("bias_detection_local", True, "Local bias detection ready")])
-
-
-class KubernetesBiasDetectionValidator(BaseValidator):
-    def validate(self) -> ValidationResult:
-        return ValidationResult([CheckResult("bias_detection_k8s", True, "Kubernetes bias detection ready")])
+# Validator system is now implemented in validators.py
 
 
 # Registry system for provider discovery
@@ -479,10 +320,10 @@ class ProviderRegistry:
             # Try to create instance without arguments first (for LMEvalProviderBase)
             instance = provider_class()
             return [mode.value for mode in instance.supported_deployment_modes]
-        except TypeError:
-            # If that fails, try with a default implementation argument (for BaseProvider)
+        except (TypeError, Exception):
+            # If that fails, try with default arguments (for BaseProvider)
             try:
-                instance = provider_class("default")
+                instance = provider_class("default", "local", k8s_client=None)
                 return [mode.value for mode in instance.supported_deployment_modes]
             except Exception:
                 # If both fail, return a default

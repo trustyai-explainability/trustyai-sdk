@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Any, TypedDict
+from typing import Any, TypedDict, List
 
 from trustyai.core import DeploymentMode
 from trustyai.core.eval import EvalProvider, EvaluationProviderConfig
+from trustyai.core.validators import BaseValidator, ValidationResult
 
 
 class LMEvalKwargs(TypedDict, total=False):
@@ -31,6 +32,55 @@ class LMEvalProviderBase(EvalProvider):
         """Initialize the base LM Eval provider."""
         self._lm_eval_module = None
         self._available_metrics = None
+        self._validators: List[BaseValidator] = []
+
+    def add_validator(self, validator: BaseValidator) -> None:
+        """Add a validator to the provider's validation list.
+        
+        Args:
+            validator: The validator to add
+        """
+        self._validators.append(validator)
+
+    def validate_all(self) -> List[ValidationResult]:
+        """Run all registered validators and return their results.
+        
+        Returns:
+            List of validation results from all validators
+        """
+        results = []
+        for validator in self._validators:
+            try:
+                result = validator.validate()
+                results.append(result)
+                
+                # Print validation result
+                if result.is_valid:
+                    print(f"✅ {result.message}")
+                else:
+                    print(f"❌ {result.message}")
+                    if result.details and "suggestion" in result.details:
+                        print(f"   💡 Suggestion: {result.details['suggestion']}")
+                        
+            except Exception as e:
+                error_result = ValidationResult(
+                    is_valid=False,
+                    message=f"Validator {validator.__class__.__name__} failed with exception: {str(e)}",
+                    details={"exception": str(e)}
+                )
+                results.append(error_result)
+                print(f"❌ {error_result.message}")
+                
+        return results
+
+    def validate_and_check(self) -> bool:
+        """Run all validators and return True if all pass, False otherwise.
+        
+        Returns:
+            True if all validators pass, False otherwise
+        """
+        results = self.validate_all()
+        return all(result.is_valid for result in results)
 
     @classmethod
     def get_description(cls) -> str:
