@@ -15,7 +15,7 @@ from trustyai.core.kubernetes import (
     KubernetesResource,
     KubernetesResourceConverter,
 )
-from trustyai.core.registry import provider_registry
+from trustyai.core.validators.kubernetes import TrustyAIOperatorValidator
 from trustyai.providers.eval.lm_eval_base import LMEvalProviderBase
 
 
@@ -124,6 +124,44 @@ class KubernetesLMEvalProvider(LMEvalProviderBase):
     pip install trustyai[eval]
     """
 
+    def __init__(self) -> None:
+        """Initialize the Kubernetes LM Eval provider."""
+        super().__init__()
+
+        # Add TrustyAI operator validator
+        # Get the k8s_client and config later when they're available
+        self._operator_validator: TrustyAIOperatorValidator | None = None
+
+    def _setup_validators(self, k8s_client=None, config: dict[str, Any] | None = None) -> None:
+        """Setup validators with the provided k8s_client and config.
+
+        Args:
+            k8s_client: Optional Kubernetes client instance
+            config: Configuration dictionary
+        """
+        # Clear existing validators
+        self._validators.clear()
+
+        # Add TrustyAI operator validator
+        if config is None:
+            config = {}
+
+        # Get namespace from config or use default
+        namespace = config.get("namespace", "trustyai-system")
+
+        self._operator_validator = TrustyAIOperatorValidator(
+            implementation="trustyai-operator",
+            config=config,
+            k8s_client=k8s_client,
+            namespace=namespace
+        )
+        self.add_validator(self._operator_validator)
+
+    @classmethod
+    def get_provider_name(cls) -> str:
+        """Return the name of this provider."""
+        return "lm-eval-kubernetes"
+
     @property
     def supported_deployment_modes(self) -> list[DeploymentMode]:
         """Return the deployment modes supported by this provider."""
@@ -172,9 +210,44 @@ class KubernetesLMEvalProvider(LMEvalProviderBase):
         print(f"[DEBUG - _evaluate_kubernetes_async] Config keys: {dir(config)}")
         print(f"[DEBUG - _evaluate_kubernetes_async] Config namespace: {config.get_param('namespace')}")
 
+        # Setup validators with config
+        config_dict = config.__dict__.copy()
+        if hasattr(config, 'additional_params'):
+            config_dict.update(config.additional_params)
+
+        # Get k8s_client if available
+        k8s_client = None
+        try:
+            from trustyai.core.kubernetes import kubernetes_client
+            if kubernetes_client.is_initialized:
+                k8s_client = kubernetes_client.client
+            else:
+                # Try to initialize the client
+                if kubernetes_client.initialize():
+                    k8s_client = kubernetes_client.client
+        except Exception as e:
+            print(f"[DEBUG] Failed to get Kubernetes client: {e}")
+            pass
+
+        self._setup_validators(k8s_client=k8s_client, config=config_dict)
+
+        # Run validation before deployment
+        print("🔍 Running Kubernetes environment validation...")
+        validation_passed = self.validate_and_check()
+
+        if not validation_passed:
+            print("❌ Validation failed. Please fix the issues above before proceeding.")
+            return {
+                "status": "validation_failed",
+                "message": "Kubernetes environment validation failed",
+                "provider": self.get_provider_name(),
+                "deployment_mode": DeploymentMode.KUBERNETES.value,
+                "error": "Environment validation failed"
+            }
+
         # Generate Kubernetes resources and track the job name
         resources = self.get_kubernetes_resources(config.__dict__)
-        
+
         # Extract the job name from the generated resources
         job_name = None
         for resource in resources:
@@ -212,7 +285,7 @@ class KubernetesLMEvalProvider(LMEvalProviderBase):
 
             # Deploy resources individually to capture detailed error messages
             success = True
-            for i, resource in enumerate(resources):
+            for _i, resource in enumerate(resources):
                 res_success, error_msg = deployer.deploy_resource(resource)
                 if not res_success:
                     success = False
@@ -243,8 +316,7 @@ class KubernetesLMEvalProvider(LMEvalProviderBase):
                         if job_results:
                             # Return results in the same format as local evaluation
                             return job_results
-                        else:
-                            deployment_message += "\nJob completed but no results found"
+                        deployment_message += "\nJob completed but no results found"
                     except Exception as e:
                         deployment_message += f"\nError retrieving results: {str(e)}"
                         error_info = str(e)
@@ -301,11 +373,11 @@ class KubernetesLMEvalProvider(LMEvalProviderBase):
             try:
                 # Get the job status
                 job_status = self._get_job_status(deployer, job_name, namespace)
-                
+
                 if job_status:
                     state = job_status.get("state", "").lower()
                     print(f"[DEBUG] Job {job_name} state: {state}")
-                    
+
                     if state == "complete":
                         # Job completed successfully, retrieve results
                         results_json = job_status.get("results")
@@ -318,22 +390,22 @@ class KubernetesLMEvalProvider(LMEvalProviderBase):
                                 print(f"[DEBUG] Failed to parse results JSON: {e}")
                                 return None
                         else:
-                            print(f"[DEBUG] Job completed but no results found")
+                            print("[DEBUG] Job completed but no results found")
                             return None
-                    
+
                     elif state in ["failed", "error"]:
                         # Job failed
                         message = job_status.get("message", "Job failed")
                         print(f"❌ Job {job_name} failed: {message}")
                         return None
-                    
+
                     else:
                         # Job still running
                         print(f"🔄 Job {job_name} still running (state: {state})...")
-                
+
                 # Use asyncio.sleep instead of time.sleep for async compatibility
                 await asyncio.sleep(check_interval)
-                
+
             except Exception as e:
                 print(f"[DEBUG] Error checking job status: {e}")
                 await asyncio.sleep(check_interval)
@@ -343,10 +415,10 @@ class KubernetesLMEvalProvider(LMEvalProviderBase):
 
     def _get_namespace_from_config(self, config: EvaluationProviderConfig) -> str:
         """Extract namespace from configuration with fallback to default.
-        
+
         Args:
             config: Evaluation configuration
-            
+
         Returns:
             Namespace string
         """
@@ -354,21 +426,21 @@ class KubernetesLMEvalProvider(LMEvalProviderBase):
         namespace = None
         if hasattr(config, 'get_param'):
             namespace = config.get_param("namespace")
-        
+
         # If not found, try the config dict directly
         if not namespace and hasattr(config, '__dict__'):
             config_dict = config.__dict__
             if "additional_params" in config_dict and isinstance(config_dict["additional_params"], dict):
                 namespace = config_dict["additional_params"].get("namespace")
-            
+
             # If not in additional_params, try the top-level config
             if not namespace:
                 namespace = config_dict.get("namespace")
-        
+
         # If still not found, use default
         if not namespace:
             namespace = "trustyai"
-            
+
         return namespace
 
     def _get_job_status(
@@ -389,7 +461,7 @@ class KubernetesLMEvalProvider(LMEvalProviderBase):
             if not deployer._initialize_client():
                 print("[DEBUG] Failed to initialize Kubernetes client")
                 return None
-            
+
             # Access the custom objects API from the deployer
             custom_objects_api = deployer._custom_objects_api
             if not custom_objects_api:
@@ -406,8 +478,7 @@ class KubernetesLMEvalProvider(LMEvalProviderBase):
             )
 
             # Extract status information
-            status = response.get("status", {})
-            return status
+            return response.get("status", {})
 
         except Exception as e:
             print(f"[DEBUG] Error getting job status: {e}")
@@ -428,7 +499,7 @@ class KubernetesLMEvalProvider(LMEvalProviderBase):
         # Extract relevant configuration
         model = config.get("model", "")
         tasks = config.get("tasks", [])
-        limit = config.get("limit", None)
+        limit = config.get("limit")
 
         # Get namespace directly from additional_params which contains CLI parameters
         namespace = None
@@ -491,17 +562,16 @@ def get_lmeval_job_results(job_name: str, namespace: str = "test") -> dict[str, 
         Dictionary with evaluation results or None if not available
     """
     try:
-        from trustyai.core.kubernetes import KubernetesDeployer
+        from trustyai.core.kubernetes import kubernetes_client
         
-        deployer = KubernetesDeployer()
-        client, custom_objects_api = deployer._get_kubernetes_client()
+        # Initialize client if not already done
+        if not kubernetes_client.is_initialized:
+            if not kubernetes_client.initialize():
+                print("❌ Failed to initialize Kubernetes client")
+                return None
         
-        if not client or not custom_objects_api:
-            print("❌ Failed to get Kubernetes client")
-            return None
-            
         # Get the LMEvalJob custom resource
-        response = custom_objects_api.get_namespaced_custom_object(
+        response = kubernetes_client.custom_objects_api.get_namespaced_custom_object(
             group="trustyai.opendatahub.io",
             version="v1alpha1",
             namespace=namespace,
@@ -521,13 +591,11 @@ def get_lmeval_job_results(job_name: str, namespace: str = "test") -> dict[str, 
                 results = json.loads(results_json)
                 print("✅ Successfully retrieved results!")
                 return results
-            else:
-                print("❌ Job completed but no results found")
-                return None
-        else:
-            print(f"⏳ Job not completed yet (state: {state})")
+            print("❌ Job completed but no results found")
             return None
-            
+        print(f"⏳ Job not completed yet (state: {state})")
+        return None
+        
     except Exception as e:
         print(f"❌ Error retrieving job results: {e}")
         return None

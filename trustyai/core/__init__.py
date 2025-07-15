@@ -8,6 +8,7 @@ from .kubernetes import (
     KubernetesResource,
     KubernetesResourceConverter,
     ServiceConverter,
+    kubernetes_client,
 )
 from .models import ExecutionMode
 from .providers import BaseProvider, ProviderRegistry
