@@ -696,5 +696,154 @@ def deploy_eval_deprecated(model_id, task, provider, limit, use_gpu, output, app
     })
 
 
+# Add validators commands
+@main.group()
+def validators():
+    """Validator management commands."""
+    pass
+
+
+def _import_validators():
+    """Import validators to trigger registration."""
+    try:
+        from .core.validators import ValidatorRegistry
+        # Import all validator modules to trigger registration
+        from .core.validators import local, kubernetes
+        return ValidatorRegistry
+    except ImportError as e:
+        click.echo(f"Error importing validators: {e}")
+        return None
+
+
+@validators.command("list")
+def list_validators():
+    """List available validators."""
+    registry = _import_validators()
+    if not registry:
+        click.echo("Error: Could not load validators registry")
+        return
+
+    available_validators = registry.list_validators()
+
+    if not available_validators:
+        click.echo("No validators are available.")
+        return
+
+    # Create a Rich table for validators
+    console = Console()
+    table = Table(title="Available Validators")
+
+    # Add columns
+    table.add_column("Name", style="cyan")
+    table.add_column("Description", style="green")
+    table.add_column("Class", style="yellow")
+
+    # Add rows for each validator
+    for validator_info in available_validators:
+        table.add_row(
+            validator_info["name"],
+            validator_info["description"],
+            validator_info["class"]
+        )
+
+    # Print the table
+    console.print(table)
+
+
+@validators.command("run")
+@click.argument("validator_name")
+@click.option("--config", "-c", help="JSON configuration for the validator")
+@click.option("--json", "output_json", is_flag=True, help="Output results as JSON")
+@click.option("--implementation", "-i", default="default", help="Implementation name (default: 'default')")
+def run_validator(validator_name, config, output_json, implementation):
+    """Run a specific validator.
+
+    Examples:
+      # Run python version validator
+      trustyai validators run python-version
+
+      # Run with configuration
+      trustyai validators run package-dependencies --config '{"packages": ["numpy", "torch"]}'
+
+      # Output as JSON
+      trustyai validators run python-version --json
+    """
+    registry = _import_validators()
+    if not registry:
+        click.echo("Error: Could not load validators registry")
+        return
+
+    # Parse configuration
+    validator_config = {}
+    if config:
+        try:
+            validator_config = json.loads(config)
+        except json.JSONDecodeError as e:
+            click.echo(f"Error: Invalid JSON in --config: {e}")
+            return
+
+    # Create validator instance
+    try:
+        validator_instance = registry.create_validator(
+            validator_name,
+            implementation,
+            validator_config
+        )
+
+        if not validator_instance:
+            click.echo(f"Error: Validator '{validator_name}' not found.")
+            click.echo("Use 'trustyai validators list' to see available validators.")
+            return
+
+        # Run validation
+        result = validator_instance.validate()
+
+        if output_json:
+            # Output as JSON
+            output_data = {
+                "validator": validator_name,
+                "implementation": implementation,
+                "config": validator_config,
+                "result": {
+                    "is_valid": result.is_valid,
+                    "message": result.message,
+                    "details": result.details
+                }
+            }
+            click.echo(json.dumps(output_data, indent=2, cls=NumpyJSONEncoder))
+        else:
+            # Output as human-readable format
+            console = Console()
+
+            # Show basic result
+            status_color = "green" if result.is_valid else "red"
+            status_symbol = "✅" if result.is_valid else "❌"
+
+            console.print(f"\n{status_symbol} Validator: [bold]{validator_name}[/bold]")
+            console.print(f"Status: [bold {status_color}]{'PASS' if result.is_valid else 'FAIL'}[/bold {status_color}]")
+            console.print(f"Message: {result.message}")
+
+            # Show details if available
+            if result.details:
+                console.print("\n[bold]Details:[/bold]")
+                for key, value in result.details.items():
+                    if isinstance(value, (list, dict)):
+                        console.print(f"  {key}: {json.dumps(value, indent=2)}")
+                    else:
+                        console.print(f"  {key}: {value}")
+
+    except Exception as e:
+        if output_json:
+            error_data = {
+                "validator": validator_name,
+                "implementation": implementation,
+                "config": validator_config,
+                "error": str(e)
+            }
+            click.echo(json.dumps(error_data, indent=2))
+        else:
+            click.echo(f"Error running validator '{validator_name}': {str(e)}")
+
+
 if __name__ == "__main__":
     main()

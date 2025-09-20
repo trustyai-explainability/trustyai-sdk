@@ -6,11 +6,74 @@ from typing import TYPE_CHECKING
 
 from ..kubernetes import kubernetes_client
 from . import KubernetesValidator, ValidationResult
+from .registry import validator
 
 if TYPE_CHECKING:
     pass
 
 
+@validator("kubernetes-connectivity")
+class KubernetesConnectivityValidator(KubernetesValidator):
+    """Validator for checking basic Kubernetes cluster connectivity."""
+
+    def validate(self) -> ValidationResult:
+        """Check if we can connect to a Kubernetes cluster.
+
+        Returns:
+            ValidationResult indicating whether cluster connectivity is working
+        """
+        if not kubernetes_client.is_initialized:
+            # Try to auto-initialize with default configuration
+            if not kubernetes_client.initialize():
+                return ValidationResult(
+                    is_valid=False,
+                    message="Failed to connect to Kubernetes cluster",
+                    details={
+                        "error": "kubernetes_client_init_failed",
+                        "suggestion": "Ensure you have a valid kubeconfig file and cluster access"
+                    }
+                )
+
+        try:
+            # Test cluster connectivity by listing namespaces
+            core_v1_api = kubernetes_client.client.CoreV1Api()
+            namespaces = core_v1_api.list_namespace()
+
+            namespace_count = len(namespaces.items)
+            namespace_names = [ns.metadata.name for ns in namespaces.items[:5]]  # Show first 5
+
+            return ValidationResult(
+                is_valid=True,
+                message=f"Successfully connected to Kubernetes cluster with {namespace_count} namespaces",
+                details={
+                    "namespace_count": namespace_count,
+                    "sample_namespaces": namespace_names,
+                    "cluster_version": self._get_cluster_version()
+                }
+            )
+
+        except Exception as e:
+            return ValidationResult(
+                is_valid=False,
+                message=f"Failed to connect to Kubernetes cluster: {str(e)}",
+                details={
+                    "error": "cluster_connection_failed",
+                    "exception": str(e),
+                    "suggestion": "Check your kubeconfig and cluster access"
+                }
+            )
+
+    def _get_cluster_version(self) -> str:
+        """Get the Kubernetes cluster version."""
+        try:
+            version_api = kubernetes_client.client.VersionApi()
+            version_info = version_api.get_code()
+            return f"{version_info.major}.{version_info.minor}"
+        except Exception:
+            return "unknown"
+
+
+@validator("trustyai-operator")
 class TrustyAIOperatorValidator(KubernetesValidator):
     """Validator for checking if the TrustyAI service operator is deployed in the cluster."""
 
@@ -33,14 +96,16 @@ class TrustyAIOperatorValidator(KubernetesValidator):
             ValidationResult indicating whether the operator is deployed
         """
         if not kubernetes_client.is_initialized:
-            return ValidationResult(
-                is_valid=False,
-                message="Kubernetes client not initialized - cannot validate TrustyAI operator",
-                details={
-                    "error": "no_kubernetes_client",
-                    "suggestion": "Initialize Kubernetes client first: kubernetes_client.initialize()"
-                }
-            )
+            # Try to auto-initialize with default configuration
+            if not kubernetes_client.initialize():
+                return ValidationResult(
+                    is_valid=False,
+                    message="Failed to initialize Kubernetes client with default configuration",
+                    details={
+                        "error": "kubernetes_client_init_failed",
+                        "suggestion": "Ensure you have a valid kubeconfig file and cluster access"
+                    }
+                )
         return self._validate_with_client()
 
     def _validate_with_client(self) -> ValidationResult:
@@ -141,14 +206,16 @@ class TrustyAIOperatorValidator(KubernetesValidator):
             ValidationResult indicating whether the CRDs are installed
         """
         if not kubernetes_client.is_initialized:
-            return ValidationResult(
-                is_valid=False,
-                message="Kubernetes client not initialized - cannot check TrustyAI CRDs",
-                details={
-                    "error": "no_kubernetes_client",
-                    "suggestion": "Initialize Kubernetes client first: kubernetes_client.initialize()"
-                }
-            )
+            # Try to auto-initialize with default configuration
+            if not kubernetes_client.initialize():
+                return ValidationResult(
+                    is_valid=False,
+                    message="Failed to initialize Kubernetes client with default configuration",
+                    details={
+                        "error": "kubernetes_client_init_failed",
+                        "suggestion": "Ensure you have a valid kubeconfig file and cluster access"
+                    }
+                )
         return self._check_crds_with_client()
 
     def _check_crds_with_client(self) -> ValidationResult:

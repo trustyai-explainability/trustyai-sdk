@@ -135,14 +135,22 @@ def create_validator(implementation: str, execution_mode: ExecutionMode, config:
         raise ValueError(f"Unsupported execution mode: {execution_mode}")
 
 
-# Import Kubernetes-specific validators
+# Import validator registry
+from .registry import ValidatorRegistry, validator
+
+# Import and register validators (this will auto-register decorated validators)
+from . import local, kubernetes
+
+# Import specific validators for direct use
 from .kubernetes import TrustyAIOperatorValidator
 
 __all__ = [
     "ValidationResult",
-    "BaseValidator", 
+    "BaseValidator",
     "LocalValidator",
     "KubernetesValidator",
     "TrustyAIOperatorValidator",
+    "ValidatorRegistry",
+    "validator",
     "create_validator"
 ]
