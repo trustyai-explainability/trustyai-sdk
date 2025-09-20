@@ -10,6 +10,7 @@ from .kubernetes import (
     ServiceConverter,
     kubernetes_client,
 )
+from .lmevaljob import LMEvalJob
 from .models import ExecutionMode
 from .providers import BaseProvider, ProviderRegistry
 
