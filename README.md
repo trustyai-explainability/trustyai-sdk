@@ -89,7 +89,17 @@ trustyai model list
 
 # List evaluation providers
 trustyai eval list-providers
+
+# List available validators
+trustyai validators list
+
+# Run a validator
+trustyai validators run python-version
 ```
+
+## Documentation
+
+- [API Documentation](API.md) - Comprehensive API reference including validators
 
 ## Development
 
