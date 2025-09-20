@@ -44,7 +44,7 @@ eval = [
     "datasets>=2.0.0",
 ]
 all = [
-    "trustyai-sdk[eval],"
+    "trustyai-sdk[eval]"
 ]
 dev = [
     "pytest>=7.0.0",
