@@ -1,7 +1,7 @@
 # TrustyAI SDK
 
-[![Ruff](https://github.com/ruivieira/trustyai-sdk/actions/workflows/ruff.yml/badge.svg)](https://github.com/ruivieira/trustyai-sdk/actions/workflows/ruff.yml)
-[![Tests](https://github.com/ruivieira/trustyai-sdk/actions/workflows/pytest.yml/badge.svg)](https://github.com/ruivieira/trustyai-sdk/actions/workflows/pytest.yml)
+[![Ruff](https://github.com/trustyai-explainability/trustyai-sdk/actions/workflows/ruff.yml/badge.svg)](https://github.com/trustyai-explainability/trustyai-sdk/actions/workflows/ruff.yml)
+[![Tests](https://github.com/trustyai-explainability/trustyai-sdk/actions/workflows/pytest.yml/badge.svg)](https://github.com/trustyai-explainability/trustyai-sdk/actions/workflows/pytest.yml)
 
 A Python SDK for TrustyAI, providing tools for explaining, evaluating, and enhancing AI models.
 
