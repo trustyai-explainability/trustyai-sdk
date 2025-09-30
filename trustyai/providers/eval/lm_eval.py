@@ -15,11 +15,11 @@ from .lm_eval_local import LocalLMEvalProvider
 @register_eval_provider
 class LMEvalProvider(EvalProvider):
     """LM Evaluation Harness provider for TrustyAI.
-    
+
     This provider automatically delegates to the appropriate implementation
     (LocalLMEvalProvider or KubernetesLMEvalProvider) based on the deployment_mode
     specified in your configuration.
-    
+
     Usage:
         # Local evaluation (default)
         config = EvaluationProviderConfig(
@@ -28,7 +28,7 @@ class LMEvalProvider(EvalProvider):
         )
         provider = Providers.eval.LMEvalProvider()
         results = provider.evaluate(config)
-        
+
         # Kubernetes evaluation
         config = EvaluationProviderConfig(
             deployment_mode=DeploymentMode.KUBERNETES,
@@ -36,7 +36,7 @@ class LMEvalProvider(EvalProvider):
         )
         provider = Providers.eval.LMEvalProvider()
         results = provider.evaluate(config)
-    
+
     Note: When using Kubernetes deployment mode, only the LMEvalJob custom resource
     will be returned, without any supporting Deployment or Service resources.
     """
@@ -45,7 +45,7 @@ class LMEvalProvider(EvalProvider):
         """Initialize the LM Eval provider wrapper."""
         self._local_provider = LocalLMEvalProvider()
         self._kubernetes_provider = KubernetesLMEvalProvider()
-        
+
     @classmethod
     def get_provider_name(cls) -> str:
         """Return the name of this provider."""
@@ -55,7 +55,7 @@ class LMEvalProvider(EvalProvider):
     def provider_type(cls) -> str:
         """Return the type of provider."""
         return "eval"
-        
+
     @classmethod
     def get_description(cls) -> str:
         """Return the description of the provider."""
@@ -66,7 +66,7 @@ class LMEvalProvider(EvalProvider):
 
     def initialize(self, **kwargs: Any) -> None:
         """Initialize both the local and Kubernetes providers.
-        
+
         Args:
             **kwargs: Additional configuration parameters
         """
@@ -122,13 +122,13 @@ class LMEvalProvider(EvalProvider):
         else:
             # Default to local if not specified
             deployment_mode = DeploymentMode.LOCAL
-            
+
         # Delegate to the appropriate provider
         if deployment_mode == DeploymentMode.KUBERNETES:
             return self._kubernetes_provider.evaluate(*args, **kwargs)
         else:
             return self._local_provider.evaluate(*args, **kwargs)
-            
+
     def get_kubernetes_resources(self, config: Dict[str, Any]) -> List[KubernetesResource]:
         """Get Kubernetes resources needed by this provider.
 

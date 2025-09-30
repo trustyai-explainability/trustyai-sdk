@@ -25,7 +25,9 @@ from trustyai.providers.eval.utils import (
 
 
 # Helper function for MT-Bench specific configuration
-def create_mt_bench_task_card(dataset_path: str = "OfirArviv/mt_bench_single_score_gpt4_judgement") -> str:
+def create_mt_bench_task_card(
+    dataset_path: str = "OfirArviv/mt_bench_single_score_gpt4_judgement",
+) -> str:
     """Create MT-Bench specific task card configuration for testing."""
     loader = Loader(__type__="load_hf", path=dataset_path, split="train")
 
@@ -33,12 +35,14 @@ def create_mt_bench_task_card(dataset_path: str = "OfirArviv/mt_bench_single_sco
         create_rename_splits_step({"train": "test"}),
         create_filter_by_condition_step({"turn": 1}, "eq"),
         create_filter_by_condition_step({"reference": "[]"}, "eq"),
-        create_rename_step({
-            "model_input": "question",
-            "score": "rating",
-            "category": "group",
-            "model_output": "answer"
-        }),
+        create_rename_step(
+            {
+                "model_input": "question",
+                "score": "rating",
+                "category": "group",
+                "model_output": "answer",
+            }
+        ),
         create_literal_eval_step("question"),
         create_copy_step("question/0", "question"),
         create_literal_eval_step("answer"),
@@ -50,7 +54,7 @@ def create_mt_bench_task_card(dataset_path: str = "OfirArviv/mt_bench_single_sco
         loader=loader,
         preprocess_steps=preprocess_steps,
         task="tasks.response_assessment.rating.single_turn",
-        templates=["templates.response_assessment.rating.mt_bench_single_turn"]
+        templates=["templates.response_assessment.rating.mt_bench_single_turn"],
     )
 
     return create_task_card_json(task_card)
@@ -111,11 +115,13 @@ class TestLMEvalJobBuilder:
 
     def test_builder_basic_creation(self):
         """Test basic job creation with builder."""
-        job = (LMEvalJobBuilder("test-job")
-               .namespace("test-ns")
-               .pretrained_model("gpt2")
-               .task_names(["hellaswag"])
-               .build())
+        job = (
+            LMEvalJobBuilder("test-job")
+            .namespace("test-ns")
+            .pretrained_model("gpt2")
+            .task_names(["hellaswag"])
+            .build()
+        )
 
         assert job.metadata.name == "test-job"
         assert job.metadata.namespace == "test-ns"
@@ -128,14 +134,16 @@ class TestLMEvalJobBuilder:
         """Test builder with custom card."""
         card_json = '{"__type__": "task_card", "task": "test"}'
 
-        job = (LMEvalJobBuilder("test-job")
-               .custom_card(
-                   card_json=card_json,
-                   template_ref="test-template",
-                   format_str="test-format",
-                   metrics=["test-metric"]
-               )
-               .build())
+        job = (
+            LMEvalJobBuilder("test-job")
+            .custom_card(
+                card_json=card_json,
+                template_ref="test-template",
+                format_str="test-format",
+                metrics=["test-metric"],
+            )
+            .build()
+        )
 
         assert job.spec.taskList.taskRecipes is not None
         assert len(job.spec.taskList.taskRecipes) == 1
@@ -153,13 +161,11 @@ class TestLMEvalJobBuilder:
         task = create_rating_task()
         metric = create_llm_as_judge_metric()
 
-        job = (LMEvalJobBuilder("test-job")
-               .custom_definitions(
-                   templates=[template],
-                   tasks=[task],
-                   metrics=[metric]
-               )
-               .build())
+        job = (
+            LMEvalJobBuilder("test-job")
+            .custom_definitions(templates=[template], tasks=[task], metrics=[metric])
+            .build()
+        )
 
         assert job.spec.custom is not None
         assert len(job.spec.custom.templates) == 1
@@ -172,15 +178,17 @@ class TestLMEvalJobBuilder:
 
     def test_builder_configuration_options(self):
         """Test builder configuration options."""
-        job = (LMEvalJobBuilder("test-job")
-               .model("custom")
-               .limit(100)
-               .log_samples(False)
-               .allow_online(False)
-               .allow_code_execution(False)
-               .env_var("TEST_VAR", "test_value")
-               .hf_token("test_token")
-               .build())
+        job = (
+            LMEvalJobBuilder("test-job")
+            .model("custom")
+            .limit(100)
+            .log_samples(False)
+            .allow_online(False)
+            .allow_code_execution(False)
+            .env_var("TEST_VAR", "test_value")
+            .hf_token("test_token")
+            .build()
+        )
 
         assert job.spec.model == "custom"
         assert job.spec.limit == "100"
@@ -205,7 +213,7 @@ class TestHelperFunctions:
             name="simple-test",
             model_name="gpt2",
             tasks=["hellaswag", "arc_easy"],
-            namespace="test-ns"
+            namespace="test-ns",
         )
 
         assert job.metadata.name == "simple-test"
@@ -218,14 +226,14 @@ class TestHelperFunctions:
         loader = Loader(__type__="load_hf", path="test/dataset", split="train")
         preprocess_steps = [
             create_rename_splits_step({"train": "test"}),
-            create_filter_by_condition_step({"field": "value"}, "eq")
+            create_filter_by_condition_step({"field": "value"}, "eq"),
         ]
         task_card = TaskCard(
             __type__="task_card",
             loader=loader,
             preprocess_steps=preprocess_steps,
             task="test.task",
-            templates=["test.template"]
+            templates=["test.template"],
         )
 
         card_json = create_task_card_json(task_card)
@@ -319,26 +327,25 @@ class TestCompatibility:
         rating_task = create_rating_task()
         llm_judge_metric = create_llm_as_judge_metric("mistralai/Mistral-7B-Instruct-v0.2")
 
-
-        job = (LMEvalJobBuilder("custom-llmaaj-metric")
-               .model("hf")
-               .add_model_arg("pretrained", "google/flan-t5-small")
-               .custom_card(
-                   card_json=task_card_json,
-                   template_ref="response_assessment.rating.mt_bench_single_turn",
-                   format_str="formats.models.mistral.instruction",
-                   metrics=["llmaaj_metric"]
-               )
-               .custom_definitions(
-                   templates=[mt_bench_template],
-                   tasks=[rating_task],
-                   metrics=[llm_judge_metric]
-               )
-               .log_samples(True)
-               .allow_online(True)
-               .allow_code_execution(True)
-               .hf_token("<HF_TOKEN>")
-               .build())
+        job = (
+            LMEvalJobBuilder("custom-llmaaj-metric")
+            .model("hf")
+            .add_model_arg("pretrained", "google/flan-t5-small")
+            .custom_card(
+                card_json=task_card_json,
+                template_ref="response_assessment.rating.mt_bench_single_turn",
+                format_str="formats.models.mistral.instruction",
+                metrics=["llmaaj_metric"],
+            )
+            .custom_definitions(
+                templates=[mt_bench_template], tasks=[rating_task], metrics=[llm_judge_metric]
+            )
+            .log_samples(True)
+            .allow_online(True)
+            .allow_code_execution(True)
+            .hf_token("<HF_TOKEN>")
+            .build()
+        )
 
         # Verify structure
         assert job.metadata.name == "custom-llmaaj-metric"
@@ -376,35 +383,44 @@ class TestCompatibility:
     def test_yaml_output_structure(self):
         """Test that YAML output has correct structure"""
         task_card_json = create_mt_bench_task_card()
-        job = (LMEvalJobBuilder("test-job")
-               .custom_card(
-                   card_json=task_card_json,
-                   template_ref="test-template",
-                   format_str="test-format",
-                   metrics=["test-metric"]
-               )
-               .build())
+        job = (
+            LMEvalJobBuilder("test-job")
+            .custom_card(
+                card_json=task_card_json,
+                template_ref="test-template",
+                format_str="test-format",
+                metrics=["test-metric"],
+            )
+            .build()
+        )
 
         yaml_output = job.to_yaml()
 
         # Verify that card.custom is a string
-        assert 'card:\n        custom: "' in yaml_output or 'card:\n          custom: "' in yaml_output
+        assert (
+            'card:\n        custom: "' in yaml_output or 'card:\n          custom: "' in yaml_output
+        )
 
         # Verify the JSON is properly escaped in YAML
-        assert '"__type__": "task_card"' in yaml_output or '\\"__type__\\": \\"task_card\\"' in yaml_output
+        assert (
+            '"__type__": "task_card"' in yaml_output
+            or '\\"__type__\\": \\"task_card\\"' in yaml_output
+        )
 
     def test_card_custom_field_format(self):
         """Test that card.custom field contains properly formatted JSON string."""
         card_json = '{"__type__": "task_card", "test": "value"}'
 
-        job = (LMEvalJobBuilder("test-job")
-               .custom_card(
-                   card_json=card_json,
-                   template_ref="test-template",
-                   format_str="test-format",
-                   metrics=["test-metric"]
-               )
-               .build())
+        job = (
+            LMEvalJobBuilder("test-job")
+            .custom_card(
+                card_json=card_json,
+                template_ref="test-template",
+                format_str="test-format",
+                metrics=["test-metric"],
+            )
+            .build()
+        )
 
         # Verify the card.custom field contains the exact JSON string
         recipe = job.spec.taskList.taskRecipes[0]
@@ -418,10 +434,12 @@ class TestCompatibility:
     def test_null_value_omission(self):
         """Test that null/None values are omitted from JSON/YAML output."""
         # Create a job with minimal configuration
-        job = (LMEvalJobBuilder("clean-test")
-               .pretrained_model("test-model")
-               .task_names(["test-task"])
-               .build())
+        job = (
+            LMEvalJobBuilder("clean-test")
+            .pretrained_model("test-model")
+            .task_names(["test-task"])
+            .build()
+        )
 
         # Convert to dict and JSON
         job_dict = job.to_dict()
@@ -442,8 +460,9 @@ class TestCompatibility:
 
         # Verify no actual null values in JSON output (not just the string "null")
         import re
+
         # Look for JSON null values (": null" or "null,")
-        null_pattern = r':\s*null[,\s}]'
+        null_pattern = r":\s*null[,\s}]"
         assert not re.search(null_pattern, job_json), f"Found JSON null values in: {job_json}"
 
         # Test TaskCard JSON creation also omits nulls
@@ -453,7 +472,9 @@ class TestCompatibility:
 
         card_json = create_task_card_json(task_card)
         # Check for actual JSON null values in TaskCard JSON
-        assert not re.search(null_pattern, card_json), f"Found JSON null values in TaskCard: {card_json}"
+        assert not re.search(null_pattern, card_json), (
+            f"Found JSON null values in TaskCard: {card_json}"
+        )
 
         # Verify the created card JSON is clean
         card_data = json.loads(card_json)

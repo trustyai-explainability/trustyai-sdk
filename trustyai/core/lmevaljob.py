@@ -195,7 +195,7 @@ class LMEvalJob:
     @staticmethod
     def _convert_to_dict(obj: Any) -> Any:
         """Recursively convert dataclass objects to dictionaries, omitting null/empty values."""
-        if hasattr(obj, '__dataclass_fields__'):
+        if hasattr(obj, "__dataclass_fields__"):
             result = {}
             for field_name, _field_def in obj.__dataclass_fields__.items():
                 value = getattr(obj, field_name)
@@ -219,7 +219,7 @@ class LMEvalJob:
                         result[field_name] = value
 
                 # Handle nested dataclass objects
-                elif hasattr(value, '__dataclass_fields__'):
+                elif hasattr(value, "__dataclass_fields__"):
                     converted = LMEvalJob._convert_to_dict(value)
                     if converted:  # Only include non-empty converted objects
                         result[field_name] = converted
@@ -231,5 +231,3 @@ class LMEvalJob:
 
             return result
         return obj
-
-

@@ -66,24 +66,27 @@ class LMEvalJobBuilder:
         self.job.spec.taskList.taskRecipes = recipes
         return self
 
-    def custom_card(self, card_json: str, template_ref: str, format_str: str, metrics: list[str]) -> LMEvalJobBuilder:
+    def custom_card(
+        self, card_json: str, template_ref: str, format_str: str, metrics: list[str]
+    ) -> LMEvalJobBuilder:
         """Add a custom card with template and metrics."""
         recipe = TaskRecipe(
             card=Card(custom=card_json),
             template=TemplateRef(ref=template_ref),
             format=format_str,
-            metrics=[MetricRef(ref=metric) for metric in metrics]
+            metrics=[MetricRef(ref=metric) for metric in metrics],
         )
         return self.task_recipes([recipe])
 
-    def custom_definitions(self, templates: list[Template] = None,
-                          tasks: list[Task] = None,
-                          metrics: list[Metric] = None) -> LMEvalJobBuilder:
+    def custom_definitions(
+        self,
+        templates: list[Template] = None,
+        tasks: list[Task] = None,
+        metrics: list[Metric] = None,
+    ) -> LMEvalJobBuilder:
         """Set custom definitions."""
         self.job.spec.custom = CustomDefinitions(
-            templates=templates or [],
-            tasks=tasks or [],
-            metrics=metrics or []
+            templates=templates or [], tasks=tasks or [], metrics=metrics or []
         )
         return self
 
@@ -123,8 +126,13 @@ class LMEvalJobBuilder:
         return self.job
 
     @staticmethod
-    def simple(name: str, model_name: str, tasks: list[str],
-               namespace: str = "default", limit: int | str | None = None) -> LMEvalJob:
+    def simple(
+        name: str,
+        model_name: str,
+        tasks: list[str],
+        namespace: str = "default",
+        limit: int | str | None = None,
+    ) -> LMEvalJob:
         """Create a simple LMEvalJob with basic configuration.
 
         Args:
@@ -137,10 +145,12 @@ class LMEvalJobBuilder:
         Returns:
             Configured LMEvalJob instance
         """
-        builder = (LMEvalJobBuilder(name)
-                  .namespace(namespace)
-                  .pretrained_model(model_name)
-                  .task_names(tasks))
+        builder = (
+            LMEvalJobBuilder(name)
+            .namespace(namespace)
+            .pretrained_model(model_name)
+            .task_names(tasks)
+        )
 
         if limit is not None:
             builder = builder.limit(limit)
@@ -149,18 +159,24 @@ class LMEvalJobBuilder:
 
 
 # Helper functions for common use cases
-def create_simple_lmeval_job(name: str, model_name: str, tasks: list[str],
-                           namespace: str = "default", limit: int | str | None = None) -> LMEvalJob:
+def create_simple_lmeval_job(
+    name: str,
+    model_name: str,
+    tasks: list[str],
+    namespace: str = "default",
+    limit: int | str | None = None,
+) -> LMEvalJob:
     """Create a simple LMEvalJob with basic configuration.
 
     .. deprecated:: 1.0.0
         Use :meth:`LMEvalJobBuilder.simple` instead.
     """
     import warnings
+
     warnings.warn(
         "create_simple_lmeval_job is deprecated. Use LMEvalJobBuilder.simple() instead.",
         DeprecationWarning,
-        stacklevel=2
+        stacklevel=2,
     )
     return LMEvalJobBuilder.simple(name, model_name, tasks, namespace, limit)
 
@@ -174,9 +190,10 @@ def create_task_card_json(task_card: TaskCard) -> str:
     Returns:
         JSON string representation of the task card (with null values omitted)
     """
+
     def clean_dict(obj):
         """Convert object to dict and remove null/empty values."""
-        if hasattr(obj, '__dataclass_fields__'):
+        if hasattr(obj, "__dataclass_fields__"):
             result = {}
             for field_name in obj.__dataclass_fields__:
                 value = getattr(obj, field_name)
@@ -193,7 +210,7 @@ def create_task_card_json(task_card: TaskCard) -> str:
                 elif isinstance(value, dict):
                     if value:  # Only include non-empty dicts
                         result[field_name] = value
-                elif hasattr(value, '__dataclass_fields__'):
+                elif hasattr(value, "__dataclass_fields__"):
                     cleaned = clean_dict(value)
                     if cleaned:
                         result[field_name] = cleaned
@@ -212,7 +229,9 @@ def create_rename_splits_step(mapper: dict[str, str]) -> PreprocessStep:
     return PreprocessStep(__type__="rename_splits", mapper=mapper)
 
 
-def create_filter_by_condition_step(values: dict[str, Any], condition: str = "eq") -> PreprocessStep:
+def create_filter_by_condition_step(
+    values: dict[str, Any], condition: str = "eq"
+) -> PreprocessStep:
     """Create a filter_by_condition preprocessing step."""
     return PreprocessStep(__type__="filter_by_condition", values=values, condition=condition)
 
@@ -240,33 +259,30 @@ def create_llm_as_judge_metric(judge_model: str = "mistralai/Mistral-7B-Instruct
             "__type__": "hf_pipeline_based_inference_engine",
             "model_name": judge_model,
             "max_new_tokens": 256,
-            "use_fp16": True
+            "use_fp16": True,
         },
         "template": "templates.response_assessment.rating.mt_bench_single_turn",
         "task": "rating.single_turn",
         "format": "formats.models.mistral.instruction",
-        "main_score": f"{judge_model.replace('/', '_').replace('-', '_').lower()}_huggingface_template_mt_bench_single_turn"
+        "main_score": f"{judge_model.replace('/', '_').replace('-', '_').lower()}_huggingface_template_mt_bench_single_turn",
     }
 
-    return Metric(
-        name="llmaaj_metric",
-        value=json.dumps(metric_config, indent=4)
-    )
+    return Metric(name="llmaaj_metric", value=json.dumps(metric_config, indent=4))
 
 
 def create_mt_bench_template() -> Template:
     """Create MT-Bench template."""
     template_config = {
         "__type__": "input_output_template",
-        "instruction": "Please act as an impartial judge and evaluate the quality of the response provided by an AI assistant to the user question displayed below. Your evaluation should consider factors such as the helpfulness, relevance, accuracy, depth, creativity, and level of detail of the response. Begin your evaluation by providing a short explanation. Be as objective as possible. After providing your explanation, you must rate the response on a scale of 1 to 10 by strictly following this format: \"[[rating]]\", for example: \"Rating: [[5]]\".\n\n",
+        "instruction": 'Please act as an impartial judge and evaluate the quality of the response provided by an AI assistant to the user question displayed below. Your evaluation should consider factors such as the helpfulness, relevance, accuracy, depth, creativity, and level of detail of the response. Begin your evaluation by providing a short explanation. Be as objective as possible. After providing your explanation, you must rate the response on a scale of 1 to 10 by strictly following this format: "[[rating]]", for example: "Rating: [[5]]".\n\n',
         "input_format": "[Question]\n{question}\n\n[The Start of Assistant's Answer]\n{answer}\n[The End of Assistant's Answer]",
         "output_format": "[[{rating}]]",
-        "postprocessors": ["processors.extract_mt_bench_rating_judgment"]
+        "postprocessors": ["processors.extract_mt_bench_rating_judgment"],
     }
 
     return Template(
         name="response_assessment.rating.mt_bench_single_turn",
-        value=json.dumps(template_config, indent=4)
+        value=json.dumps(template_config, indent=4),
     )
 
 
@@ -274,17 +290,11 @@ def create_rating_task() -> Task:
     """Create rating task definition."""
     task_config = {
         "__type__": "task",
-        "input_fields": {
-            "question": "str",
-            "answer": "str"
-        },
-        "outputs": {
-            "rating": "float"
-        },
-        "metrics": ["metrics.spearman"]
+        "input_fields": {"question": "str", "answer": "str"},
+        "outputs": {"rating": "float"},
+        "metrics": ["metrics.spearman"],
     }
 
     return Task(
-        name="response_assessment.rating.single_turn",
-        value=json.dumps(task_config, indent=4)
+        name="response_assessment.rating.single_turn", value=json.dumps(task_config, indent=4)
     )

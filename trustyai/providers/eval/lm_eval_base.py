@@ -36,7 +36,7 @@ class LMEvalProviderBase(EvalProvider):
 
     def add_validator(self, validator: BaseValidator) -> None:
         """Add a validator to the provider's validation list.
-        
+
         Args:
             validator: The validator to add
         """
@@ -44,7 +44,7 @@ class LMEvalProviderBase(EvalProvider):
 
     def validate_all(self) -> List[ValidationResult]:
         """Run all registered validators and return their results.
-        
+
         Returns:
             List of validation results from all validators
         """
@@ -53,7 +53,7 @@ class LMEvalProviderBase(EvalProvider):
             try:
                 result = validator.validate()
                 results.append(result)
-                
+
                 # Print validation result
                 if result.is_valid:
                     print(f"✅ {result.message}")
@@ -61,21 +61,21 @@ class LMEvalProviderBase(EvalProvider):
                     print(f"❌ {result.message}")
                     if result.details and "suggestion" in result.details:
                         print(f"   💡 Suggestion: {result.details['suggestion']}")
-                        
+
             except Exception as e:
                 error_result = ValidationResult(
                     is_valid=False,
                     message=f"Validator {validator.__class__.__name__} failed with exception: {str(e)}",
-                    details={"exception": str(e)}
+                    details={"exception": str(e)},
                 )
                 results.append(error_result)
                 print(f"❌ {error_result.message}")
-                
+
         return results
 
     def validate_and_check(self) -> bool:
         """Run all validators and return True if all pass, False otherwise.
-        
+
         Returns:
             True if all validators pass, False otherwise
         """
@@ -208,14 +208,18 @@ class LMEvalProviderBase(EvalProvider):
             config = kwargs.pop("config")
 
             # Only override device if not explicitly set in config
-            if not hasattr(config, 'device') or config.device is None:
+            if not hasattr(config, "device") or config.device is None:
                 config.device = default_device
             config.deployment_mode = deployment_mode
 
             # Debug check for namespace
-            print(f"[DEBUG - _parse_args_to_config] Args=0: has namespace? {'namespace' in config.additional_params}")
+            print(
+                f"[DEBUG - _parse_args_to_config] Args=0: has namespace? {'namespace' in config.additional_params}"
+            )
             if "namespace" in config.additional_params:
-                print(f"[DEBUG - _parse_args_to_config] Namespace value: {config.additional_params['namespace']}")
+                print(
+                    f"[DEBUG - _parse_args_to_config] Namespace value: {config.additional_params['namespace']}"
+                )
 
             return config
         elif len(args) == 1:
@@ -225,16 +229,24 @@ class LMEvalProviderBase(EvalProvider):
                 config = args[0]
 
                 # Only override device if no_gpu flag is present or device is not set
-                if kwargs.get("no_gpu", False) or not hasattr(config, 'device') or config.device is None:
+                if (
+                    kwargs.get("no_gpu", False)
+                    or not hasattr(config, "device")
+                    or config.device is None
+                ):
                     config.device = default_device
 
                 if "deployment_mode" not in kwargs:
                     config.deployment_mode = deployment_mode
 
                 # Debug check for namespace
-                print(f"[DEBUG - _parse_args_to_config] Args=1: has namespace? {'namespace' in config.additional_params}")
+                print(
+                    f"[DEBUG - _parse_args_to_config] Args=1: has namespace? {'namespace' in config.additional_params}"
+                )
                 if "namespace" in config.additional_params:
-                    print(f"[DEBUG - _parse_args_to_config] Namespace value: {config.additional_params['namespace']}")
+                    print(
+                        f"[DEBUG - _parse_args_to_config] Namespace value: {config.additional_params['namespace']}"
+                    )
 
                 return config
             else:
@@ -259,12 +271,16 @@ class LMEvalProviderBase(EvalProvider):
                 metrics=metrics,
                 device=default_device,
                 deployment_mode=deployment_mode,
-                **kwargs_copy
+                **kwargs_copy,
             )
 
             # Debug check for namespace
-            print(f"[DEBUG - _parse_args_to_config] Args={len(args)}: has namespace? {'namespace' in config.additional_params}")
+            print(
+                f"[DEBUG - _parse_args_to_config] Args={len(args)}: has namespace? {'namespace' in config.additional_params}"
+            )
             if "namespace" in config.additional_params:
-                print(f"[DEBUG - _parse_args_to_config] Namespace value: {config.additional_params['namespace']}")
+                print(
+                    f"[DEBUG - _parse_args_to_config] Namespace value: {config.additional_params['namespace']}"
+                )
 
             return config

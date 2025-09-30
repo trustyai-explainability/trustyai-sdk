@@ -48,19 +48,23 @@ class ValidatorRegistry:
         validators = []
         for name, validator_class in cls._validators.items():
             # Get docstring for description
-            description = (validator_class.__doc__ or "").strip().split('\n')[0]
+            description = (validator_class.__doc__ or "").strip().split("\n")[0]
 
-            validators.append({
-                'name': name,
-                'class': validator_class.__name__,
-                'description': description,
-                'module': validator_class.__module__
-            })
+            validators.append(
+                {
+                    "name": name,
+                    "class": validator_class.__name__,
+                    "description": description,
+                    "module": validator_class.__module__,
+                }
+            )
 
         return validators
 
     @classmethod
-    def create_validator(cls, name: str, implementation: str, config: Dict[str, Any], **kwargs) -> BaseValidator | None:
+    def create_validator(
+        cls, name: str, implementation: str, config: Dict[str, Any], **kwargs
+    ) -> BaseValidator | None:
         """Create a validator instance by name.
 
         Args:
@@ -81,12 +85,12 @@ class ValidatorRegistry:
         init_kwargs = {}
 
         for param_name in sig.parameters:
-            if param_name == 'self':
+            if param_name == "self":
                 continue
-            elif param_name == 'implementation':
-                init_kwargs['implementation'] = implementation
-            elif param_name == 'config':
-                init_kwargs['config'] = config
+            elif param_name == "implementation":
+                init_kwargs["implementation"] = implementation
+            elif param_name == "config":
+                init_kwargs["config"] = config
             elif param_name in kwargs:
                 init_kwargs[param_name] = kwargs[param_name]
 
@@ -99,6 +103,7 @@ def validator(name: str):
     Args:
         name: The name to register the validator under
     """
+
     def decorator(validator_class: Type[BaseValidator]) -> Type[BaseValidator]:
         ValidatorRegistry.register(name, validator_class)
         return validator_class

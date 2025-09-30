@@ -37,7 +37,7 @@ class ModelReference:
     metadata: Dict[str, Any] = field(default_factory=dict)
 
 
-@dataclass 
+@dataclass
 class DatasetReference:
     """Standardised dataset reference format."""
 
@@ -54,7 +54,7 @@ class TrustyAIMetadata:
 
     job_id: str
     provider_type: str  # Type of provider (evaluation, explainability, etc.)
-    implementation: str  # Specific implementation used  
+    implementation: str  # Specific implementation used
     execution_mode: ExecutionMode  # Execution environment
     version: str  # TrustyAI version used
     created_at: datetime = field(default_factory=datetime.utcnow)
@@ -153,11 +153,13 @@ class ProviderConfig:
     implementation: str
     execution_mode: ExecutionMode = ExecutionMode.LOCAL
     timeout: int = 3600  # Operation timeout in seconds
-    retry_policy: Dict[str, Any] = field(default_factory=lambda: {
-        "max_attempts": 3,
-        "backoff_factor": 2.0,
-        "exceptions": ["ConnectionError", "TimeoutError"]
-    })
+    retry_policy: Dict[str, Any] = field(
+        default_factory=lambda: {
+            "max_attempts": 3,
+            "backoff_factor": 2.0,
+            "exceptions": ["ConnectionError", "TimeoutError"],
+        }
+    )
 
 
 @dataclass
@@ -175,10 +177,7 @@ class KubernetesExecutionConfig:
 
     namespace: str
     job_template: Optional[str] = None
-    resource_limits: Dict[str, str] = field(default_factory=lambda: {
-        "cpu": "2",
-        "memory": "4Gi"
-    })
+    resource_limits: Dict[str, str] = field(default_factory=lambda: {"cpu": "2", "memory": "4Gi"})
     service_account: Optional[str] = None
     node_selector: Dict[str, str] = field(default_factory=dict)
     tolerations: List[Dict[str, Any]] = field(default_factory=list)
@@ -189,10 +188,10 @@ class TrustyAIEncoder(json.JSONEncoder):
 
     def default(self, obj: Any) -> Any:
         """Handle serialisation of TrustyAI objects."""
-        if hasattr(obj, '__dict__'):
+        if hasattr(obj, "__dict__"):
             return obj.__dict__
         elif isinstance(obj, datetime):
             return obj.isoformat()
         elif isinstance(obj, Enum):
             return obj.value
-        return super().default(obj) 
+        return super().default(obj)

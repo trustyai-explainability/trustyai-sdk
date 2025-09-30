@@ -4,10 +4,10 @@ Example usage with the Providers class:
     from trustyai import Providers
     from trustyai.core import DeploymentMode
     from trustyai.core.eval import EvaluationProviderConfig
-    
+
     # Create provider - deployment mode is handled by configuration
     provider = Providers.eval.LMEvalProvider()
-    
+
     # Local evaluation (default)
     config = EvaluationProviderConfig(
         deployment_mode=DeploymentMode.LOCAL,
@@ -15,15 +15,15 @@ Example usage with the Providers class:
         tasks=["hellaswag"]
     )
     results = provider.evaluate(config)
-    
+
     # Kubernetes evaluation
     config = EvaluationProviderConfig(
         deployment_mode=DeploymentMode.KUBERNETES,
-        model="gpt2", 
+        model="gpt2",
         tasks=["hellaswag"]
     )
     results = provider.evaluate(config)
-    
+
     # Access other provider types
     # provider = Providers.explainability.SomeProvider()
     # provider = Providers.bias_detection.SomeProvider()
