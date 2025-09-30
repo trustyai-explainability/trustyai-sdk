@@ -1,4 +1,5 @@
 """Provider system for TrustyAI extensions following ADR-0010 specification."""
+
 from __future__ import annotations
 
 import abc
@@ -7,8 +8,11 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from .models import ExecutionMode, JobStatus, TrustyAIMetadata, TrustyAIRequest, TrustyAIResponse
 from .validators import (
-    BaseValidator, LocalValidator, KubernetesValidator,
-    ValidationResult, create_validator
+    BaseValidator,
+    LocalValidator,
+    KubernetesValidator,
+    ValidationResult,
+    create_validator,
 )
 
 if TYPE_CHECKING:
@@ -18,7 +22,9 @@ if TYPE_CHECKING:
 class BaseProvider(abc.ABC):
     """Base provider interface for all TrustyAI capabilities following ADR-0010."""
 
-    def __init__(self, implementation: str, execution_mode: str = "local", k8s_client=None, **config: Any):
+    def __init__(
+        self, implementation: str, execution_mode: str = "local", k8s_client=None, **config: Any
+    ):
         """Initialise provider with implementation and execution mode.
 
         Args:
@@ -36,7 +42,9 @@ class BaseProvider(abc.ABC):
     @abc.abstractmethod
     def _get_validator(self) -> BaseValidator:
         """Get the appropriate validator for this provider implementation."""
-        return create_validator(self.implementation, self.execution_mode, self.config, self.k8s_client)
+        return create_validator(
+            self.implementation, self.execution_mode, self.config, self.k8s_client
+        )
 
     @abc.abstractmethod
     def execute(self, request: TrustyAIRequest) -> TrustyAIResponse:
@@ -50,10 +58,10 @@ class BaseProvider(abc.ABC):
     def _prepare_execution(self, request: TrustyAIRequest) -> Dict[str, Any]:
         """Prepare execution parameters from request."""
         return {
-            'implementation': self.implementation,
-            'execution_mode': self.execution_mode,
-            'config': self.config,
-            'request': request
+            "implementation": self.implementation,
+            "execution_mode": self.execution_mode,
+            "config": self.config,
+            "request": request,
         }
 
     @classmethod
@@ -64,7 +72,7 @@ class BaseProvider(abc.ABC):
     @classmethod
     def get_provider_name(cls) -> str:
         """Return the name of the provider implementation."""
-        return getattr(cls, '_provider_name', cls.__name__)
+        return getattr(cls, "_provider_name", cls.__name__)
 
     @classmethod
     def get_description(cls) -> str:
@@ -87,17 +95,19 @@ class EvaluationProvider(BaseProvider):
 
     def __init__(self, implementation: str, execution_mode: str = "local", **config: Any):
         """Initialise evaluation provider.
-        
+
         Args:
-            implementation: Evaluation implementation (e.g., "lm-evaluation-harness", "ragas") 
+            implementation: Evaluation implementation (e.g., "lm-evaluation-harness", "ragas")
             execution_mode: Execution mode ("local" or "kubernetes")
             **config: Provider-specific configuration
         """
         super().__init__(implementation, execution_mode, **config)
-        
+
         # Initialise platform-specific executor
         if self.execution_mode == ExecutionMode.LOCAL:
-            self.executor: Union[LocalEvaluationExecutor, KubernetesEvaluationExecutor] = LocalEvaluationExecutor(implementation, config)
+            self.executor: Union[LocalEvaluationExecutor, KubernetesEvaluationExecutor] = (
+                LocalEvaluationExecutor(implementation, config)
+            )
         elif self.execution_mode == ExecutionMode.KUBERNETES:
             self.executor = KubernetesEvaluationExecutor(implementation, config)
         else:
@@ -112,20 +122,22 @@ class EvaluationProvider(BaseProvider):
         """Execute evaluation using the configured executor."""
         return self.executor.execute_evaluation(request)
 
-    def evaluate(self, model: str, tasks: List[str], parameters: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def evaluate(
+        self, model: str, tasks: List[str], parameters: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """Convenience method for evaluation."""
         # Create request from parameters
         from .models import EvaluationRequest, ModelReference
-        
+
         model_ref = ModelReference(identifier=model, type="huggingface")
         request = EvaluationRequest(
             provider=self.implementation,
             model=model_ref,
             tasks=tasks,
             parameters=parameters or {},
-            execution_mode=self.execution_mode
+            execution_mode=self.execution_mode,
         )
-        
+
         response = self.execute(request)  # type: ignore[arg-type]
         return response.results if response.results else {}
 
@@ -140,9 +152,11 @@ class ExplainabilityProvider(BaseProvider):
 
     def __init__(self, implementation: str, execution_mode: str = "local", **config: Any):
         super().__init__(implementation, execution_mode, **config)
-        
+
         if self.execution_mode == ExecutionMode.LOCAL:
-            self.executor: Union[LocalExplainabilityExecutor, KubernetesExplainabilityExecutor] = LocalExplainabilityExecutor(implementation, config)
+            self.executor: Union[LocalExplainabilityExecutor, KubernetesExplainabilityExecutor] = (
+                LocalExplainabilityExecutor(implementation, config)
+            )
         elif self.execution_mode == ExecutionMode.KUBERNETES:
             self.executor = KubernetesExplainabilityExecutor(implementation, config)
         else:
@@ -165,9 +179,11 @@ class BiasDetectionProvider(BaseProvider):
 
     def __init__(self, implementation: str, execution_mode: str = "local", **config: Any):
         super().__init__(implementation, execution_mode, **config)
-        
+
         if self.execution_mode == ExecutionMode.LOCAL:
-            self.executor: Union[LocalBiasDetectionExecutor, KubernetesBiasDetectionExecutor] = LocalBiasDetectionExecutor(implementation, config)
+            self.executor: Union[LocalBiasDetectionExecutor, KubernetesBiasDetectionExecutor] = (
+                LocalBiasDetectionExecutor(implementation, config)
+            )
         elif self.execution_mode == ExecutionMode.KUBERNETES:
             self.executor = KubernetesBiasDetectionExecutor(implementation, config)
         else:
@@ -202,10 +218,12 @@ class BaseExecutor(abc.ABC):
         """Create metadata for the operation."""
         return TrustyAIMetadata(
             job_id=str(uuid.uuid4()),
-            provider_type=self.__class__.__name__.replace('Executor', '').lower(),
+            provider_type=self.__class__.__name__.replace("Executor", "").lower(),
             implementation=self.implementation,
-            execution_mode=ExecutionMode.LOCAL if 'Local' in self.__class__.__name__ else ExecutionMode.KUBERNETES,
-            version="2.0.0a1"
+            execution_mode=ExecutionMode.LOCAL
+            if "Local" in self.__class__.__name__
+            else ExecutionMode.KUBERNETES,
+            version="2.0.0a1",
         )
 
 
@@ -215,15 +233,15 @@ class LocalEvaluationExecutor(BaseExecutor):
     def execute_evaluation(self, request: TrustyAIRequest) -> TrustyAIResponse:
         """Execute evaluation locally."""
         metadata = self._create_metadata(request)
-        
+
         # TODO: Implement actual local evaluation logic
         # This would invoke lm-eval or other evaluation frameworks directly
-        
+
         return TrustyAIResponse(
             metadata=metadata,
             status=JobStatus.COMPLETED,
             results={"status": "evaluation completed locally"},
-            execution_info={"mode": "local", "implementation": self.implementation}
+            execution_info={"mode": "local", "implementation": self.implementation},
         )
 
     def execute(self, request: TrustyAIRequest) -> TrustyAIResponse:
@@ -236,15 +254,15 @@ class KubernetesEvaluationExecutor(BaseExecutor):
     def execute_evaluation(self, request: TrustyAIRequest) -> TrustyAIResponse:
         """Execute evaluation on Kubernetes."""
         metadata = self._create_metadata(request)
-        
+
         # TODO: Implement Kubernetes job deployment
         # This would create Custom Resources and deploy jobs to cluster
-        
+
         return TrustyAIResponse(
             metadata=metadata,
             status=JobStatus.PENDING,
             results={"status": "evaluation job deployed to kubernetes"},
-            execution_info={"mode": "kubernetes", "implementation": self.implementation}
+            execution_info={"mode": "kubernetes", "implementation": self.implementation},
         )
 
     def execute(self, request: TrustyAIRequest) -> TrustyAIResponse:
@@ -258,7 +276,7 @@ class LocalExplainabilityExecutor(BaseExecutor):
         return TrustyAIResponse(
             metadata=metadata,
             status=JobStatus.COMPLETED,
-            results={"status": "explanation completed locally"}
+            results={"status": "explanation completed locally"},
         )
 
     def execute(self, request: TrustyAIRequest) -> TrustyAIResponse:
@@ -271,7 +289,7 @@ class KubernetesExplainabilityExecutor(BaseExecutor):
         return TrustyAIResponse(
             metadata=metadata,
             status=JobStatus.PENDING,
-            results={"status": "explanation job deployed to kubernetes"}
+            results={"status": "explanation job deployed to kubernetes"},
         )
 
     def execute(self, request: TrustyAIRequest) -> TrustyAIResponse:
@@ -284,7 +302,7 @@ class LocalBiasDetectionExecutor(BaseExecutor):
         return TrustyAIResponse(
             metadata=metadata,
             status=JobStatus.COMPLETED,
-            results={"status": "bias detection completed locally"}
+            results={"status": "bias detection completed locally"},
         )
 
     def execute(self, request: TrustyAIRequest) -> TrustyAIResponse:
@@ -297,7 +315,7 @@ class KubernetesBiasDetectionExecutor(BaseExecutor):
         return TrustyAIResponse(
             metadata=metadata,
             status=JobStatus.PENDING,
-            results={"status": "bias detection job deployed to kubernetes"}
+            results={"status": "bias detection job deployed to kubernetes"},
         )
 
     def execute(self, request: TrustyAIRequest) -> TrustyAIResponse:
@@ -342,7 +360,9 @@ class ProviderRegistry:
 
     @classmethod
     def get_provider(
-        cls, provider_type: str, provider_name: str | None = None,
+        cls,
+        provider_type: str,
+        provider_name: str | None = None,
     ) -> type[BaseProvider] | None:
         """Get a provider by type and optional name."""
         if provider_type not in cls._providers:

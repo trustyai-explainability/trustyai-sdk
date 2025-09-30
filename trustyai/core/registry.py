@@ -48,56 +48,60 @@ def register_eval_provider(cls: E) -> E:
 # Create a namespace class for organized provider registration
 class ProviderRegistration:
     """Namespace for provider registration functions."""
-    
+
     class eval:
         """Namespace for evaluation provider registration functions."""
-        
+
         @staticmethod
         def register_local(provider_name: str) -> Callable[[E], E]:
             """Register a local evaluation provider.
-            
+
             Example:
                 @provider.eval.register_local("lm-eval")
                 class LocalLMEvalProvider(EvalProvider):
                     ...
-                    
+
             Args:
                 provider_name: The name for this provider implementation
-                
+
             Returns:
                 A decorator function for registering the provider
             """
+
             def decorator(cls: E) -> E:
                 # Set the provider name
                 cls._provider_name = provider_name
                 # Register with the provider registry
                 ProviderRegistry.register_provider(cls)
                 return cls
+
             return decorator
-            
+
         @staticmethod
         def register_kubernetes(provider_name: str) -> Callable[[E], E]:
             """Register a Kubernetes evaluation provider.
-            
+
             Example:
                 @provider.eval.register_kubernetes("lm-eval")
                 class KubernetesLMEvalProvider(EvalProvider):
                     ...
-                    
+
             Args:
                 provider_name: The name for this provider implementation
-                
+
             Returns:
                 A decorator function for registering the provider
             """
+
             def decorator(cls: E) -> E:
                 # Set the provider name
                 cls._provider_name = provider_name
                 # Register with the provider registry
                 ProviderRegistry.register_provider(cls)
                 return cls
+
             return decorator
 
 
 # Create an instance for easy imports
-provider_registry = ProviderRegistration() 
+provider_registry = ProviderRegistration()

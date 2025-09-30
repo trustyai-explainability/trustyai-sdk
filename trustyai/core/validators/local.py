@@ -17,11 +17,11 @@ class PythonVersionValidator(BaseValidator):
 
     def validate(self) -> ValidationResult:
         """Check if Python version meets requirements."""
-        min_version = self.config.get('min_version', '3.8')
+        min_version = self.config.get("min_version", "3.8")
         current_version = f"{sys.version_info.major}.{sys.version_info.minor}"
 
         try:
-            min_major, min_minor = map(int, min_version.split('.'))
+            min_major, min_minor = map(int, min_version.split("."))
             current_major, current_minor = sys.version_info.major, sys.version_info.minor
 
             if (current_major, current_minor) >= (min_major, min_minor):
@@ -31,8 +31,8 @@ class PythonVersionValidator(BaseValidator):
                     details={
                         "current_version": current_version,
                         "required_version": min_version,
-                        "python_executable": sys.executable
-                    }
+                        "python_executable": sys.executable,
+                    },
                 )
             else:
                 return ValidationResult(
@@ -41,14 +41,14 @@ class PythonVersionValidator(BaseValidator):
                     details={
                         "current_version": current_version,
                         "required_version": min_version,
-                        "python_executable": sys.executable
-                    }
+                        "python_executable": sys.executable,
+                    },
                 )
         except Exception as e:
             return ValidationResult(
                 is_valid=False,
                 message=f"Failed to validate Python version: {str(e)}",
-                details={"error": str(e)}
+                details={"error": str(e)},
             )
 
 
@@ -58,12 +58,10 @@ class PackageDependenciesValidator(BaseValidator):
 
     def validate(self) -> ValidationResult:
         """Check if required packages are installed."""
-        packages = self.config.get('packages', [])
+        packages = self.config.get("packages", [])
         if not packages:
             return ValidationResult(
-                is_valid=True,
-                message="No packages specified to validate",
-                details={"packages": []}
+                is_valid=True, message="No packages specified to validate", details={"packages": []}
             )
 
         missing_packages = []
@@ -72,7 +70,7 @@ class PackageDependenciesValidator(BaseValidator):
         for package in packages:
             try:
                 module = importlib.import_module(package)
-                version = getattr(module, '__version__', 'unknown')
+                version = getattr(module, "__version__", "unknown")
                 installed_packages[package] = version
             except ImportError:
                 missing_packages.append(package)
@@ -81,10 +79,7 @@ class PackageDependenciesValidator(BaseValidator):
             return ValidationResult(
                 is_valid=True,
                 message=f"All required packages are installed: {', '.join(packages)}",
-                details={
-                    "packages": packages,
-                    "installed_versions": installed_packages
-                }
+                details={"packages": packages, "installed_versions": installed_packages},
             )
         else:
             return ValidationResult(
@@ -93,8 +88,8 @@ class PackageDependenciesValidator(BaseValidator):
                 details={
                     "packages": packages,
                     "missing_packages": missing_packages,
-                    "installed_packages": installed_packages
-                }
+                    "installed_packages": installed_packages,
+                },
             )
 
 
@@ -106,8 +101,8 @@ class EnvironmentVariablesValidator(BaseValidator):
         """Check if required environment variables are set."""
         import os
 
-        required_vars = self.config.get('required_variables', [])
-        optional_vars = self.config.get('optional_variables', [])
+        required_vars = self.config.get("required_variables", [])
+        optional_vars = self.config.get("optional_variables", [])
 
         missing_required = []
         present_vars = {}
@@ -117,7 +112,9 @@ class EnvironmentVariablesValidator(BaseValidator):
         for var in required_vars:
             value = os.getenv(var)
             if value is not None:
-                present_vars[var] = "***" if "token" in var.lower() or "key" in var.lower() else value
+                present_vars[var] = (
+                    "***" if "token" in var.lower() or "key" in var.lower() else value
+                )
             else:
                 missing_required.append(var)
 
@@ -125,7 +122,9 @@ class EnvironmentVariablesValidator(BaseValidator):
         for var in optional_vars:
             value = os.getenv(var)
             if value is not None:
-                present_vars[var] = "***" if "token" in var.lower() or "key" in var.lower() else value
+                present_vars[var] = (
+                    "***" if "token" in var.lower() or "key" in var.lower() else value
+                )
             else:
                 missing_optional.append(var)
 
@@ -141,8 +140,8 @@ class EnvironmentVariablesValidator(BaseValidator):
                     "required_variables": required_vars,
                     "optional_variables": optional_vars,
                     "present_variables": list(present_vars.keys()),
-                    "missing_optional": missing_optional
-                }
+                    "missing_optional": missing_optional,
+                },
             )
         else:
             return ValidationResult(
@@ -152,8 +151,8 @@ class EnvironmentVariablesValidator(BaseValidator):
                     "required_variables": required_vars,
                     "missing_required": missing_required,
                     "present_variables": list(present_vars.keys()),
-                    "missing_optional": missing_optional
-                }
+                    "missing_optional": missing_optional,
+                },
             )
 
 
@@ -166,11 +165,13 @@ class LMEvalHarnessValidator(BaseValidator):
         try:
             # Try to import lm_eval
             import lm_eval
-            version = getattr(lm_eval, '__version__', 'unknown')
+
+            version = getattr(lm_eval, "__version__", "unknown")
 
             # Try to check if basic functionality works
             try:
                 from lm_eval import tasks
+
                 available_tasks = list(tasks.ALL_TASKS.keys())[:5]  # Just a few for testing
 
                 return ValidationResult(
@@ -179,32 +180,27 @@ class LMEvalHarnessValidator(BaseValidator):
                     details={
                         "version": version,
                         "sample_tasks": available_tasks,
-                        "total_tasks": len(tasks.ALL_TASKS)
-                    }
+                        "total_tasks": len(tasks.ALL_TASKS),
+                    },
                 )
             except Exception as e:
                 return ValidationResult(
                     is_valid=False,
                     message=f"lm-evaluation-harness is installed but not functioning properly: {str(e)}",
-                    details={
-                        "version": version,
-                        "error": str(e)
-                    }
+                    details={"version": version, "error": str(e)},
                 )
 
         except ImportError:
             return ValidationResult(
                 is_valid=False,
                 message="lm-evaluation-harness is not installed",
-                details={
-                    "suggestion": "Install with: pip install lm-eval[default]"
-                }
+                details={"suggestion": "Install with: pip install lm-eval[default]"},
             )
         except Exception as e:
             return ValidationResult(
                 is_valid=False,
                 message=f"Failed to validate lm-evaluation-harness: {str(e)}",
-                details={"error": str(e)}
+                details={"error": str(e)},
             )
 
 
@@ -226,17 +222,14 @@ class TrustyAIProviderValidator(BaseValidator):
                 pass  # Optional providers not available
 
             providers = ProviderRegistry.list_providers()
-            eval_providers = providers.get('eval', [])
+            eval_providers = providers.get("eval", [])
 
             if eval_providers:
-                provider_names = [p['name'] for p in eval_providers]
+                provider_names = [p["name"] for p in eval_providers]
                 return ValidationResult(
                     is_valid=True,
                     message=f"TrustyAI providers are available: {', '.join(provider_names)}",
-                    details={
-                        "providers": eval_providers,
-                        "provider_count": len(eval_providers)
-                    }
+                    details={"providers": eval_providers, "provider_count": len(eval_providers)},
                 )
             else:
                 return ValidationResult(
@@ -244,12 +237,12 @@ class TrustyAIProviderValidator(BaseValidator):
                     message="No TrustyAI providers are available",
                     details={
                         "suggestion": "Install evaluation providers with: pip install trustyai[eval]"
-                    }
+                    },
                 )
 
         except Exception as e:
             return ValidationResult(
                 is_valid=False,
                 message=f"Failed to validate TrustyAI providers: {str(e)}",
-                details={"error": str(e)}
+                details={"error": str(e)},
             )

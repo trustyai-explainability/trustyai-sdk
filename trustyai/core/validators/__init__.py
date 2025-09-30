@@ -1,4 +1,5 @@
 """Simple validator system for TrustyAI providers."""
+
 from __future__ import annotations
 
 import abc
@@ -46,13 +47,13 @@ class LocalValidator(BaseValidator):
             return ValidationResult(
                 is_valid=True,
                 message=f"Local validation passed for {self.implementation}",
-                details={"implementation": self.implementation, "mode": "local"}
+                details={"implementation": self.implementation, "mode": "local"},
             )
         except ImportError:
             return ValidationResult(
                 is_valid=False,
                 message=f"Implementation '{self.implementation}' is not available",
-                details={"implementation": self.implementation, "mode": "local"}
+                details={"implementation": self.implementation, "mode": "local"},
             )
 
 
@@ -73,7 +74,7 @@ class KubernetesValidator(BaseValidator):
     def validate(self) -> ValidationResult:
         """Perform basic Kubernetes environment validation."""
         # TODO:Basic check
-        namespace = self.config.get('namespace', 'trustyai')
+        namespace = self.config.get("namespace", "trustyai")
 
         # If we have a k8s client, we can perform a better validation
         if self.k8s_client:
@@ -84,11 +85,11 @@ class KubernetesValidator(BaseValidator):
                     is_valid=True,
                     message=f"Kubernetes validation passed for {self.implementation} using provided client",
                     details={
-                        "implementation": self.implementation, 
+                        "implementation": self.implementation,
                         "mode": "kubernetes",
                         "namespace": namespace,
-                        "client_provided": True
-                    }
+                        "client_provided": True,
+                    },
                 )
             except Exception as e:
                 return ValidationResult(
@@ -99,8 +100,8 @@ class KubernetesValidator(BaseValidator):
                         "mode": "kubernetes",
                         "namespace": namespace,
                         "client_provided": True,
-                        "error": str(e)
-                    }
+                        "error": str(e),
+                    },
                 )
         else:
             # Fallback to basic validation without client
@@ -108,16 +109,18 @@ class KubernetesValidator(BaseValidator):
                 is_valid=True,
                 message=f"Kubernetes validation passed for {self.implementation} (no client provided)",
                 details={
-                    "implementation": self.implementation, 
+                    "implementation": self.implementation,
                     "mode": "kubernetes",
                     "namespace": namespace,
-                    "client_provided": False
-                }
+                    "client_provided": False,
+                },
             )
 
 
 # Factory function for creating validators
-def create_validator(implementation: str, execution_mode: ExecutionMode, config: dict[str, Any], k8s_client=None) -> BaseValidator:
+def create_validator(
+    implementation: str, execution_mode: ExecutionMode, config: dict[str, Any], k8s_client=None
+) -> BaseValidator:
     """Create the appropriate validator based on implementation and execution mode.
 
     Args:
@@ -152,5 +155,5 @@ __all__ = [
     "TrustyAIOperatorValidator",
     "ValidatorRegistry",
     "validator",
-    "create_validator"
+    "create_validator",
 ]

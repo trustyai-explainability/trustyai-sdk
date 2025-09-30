@@ -12,18 +12,18 @@ from trustyai.providers.eval.lm_eval_base import LMEvalProviderBase
 
 class LocalLMEvalProvider(LMEvalProviderBase):
     """Local implementation of LM Evaluation Harness for TrustyAI.
-    
+
     This provider runs evaluation directly on the local machine.
-    
+
     Note: Requires the 'eval' extra to be installed:
     pip install trustyai[eval]
     """
-    
+
     @property
     def supported_deployment_modes(self) -> list[DeploymentMode]:
         """Return the deployment modes supported by this provider."""
         return [DeploymentMode.LOCAL]
-    
+
     def evaluate(self, *args: Any, **kwargs) -> Dict[str, Any]:  # type: ignore
         """Evaluate a model using lm-evaluation-harness locally.
 
@@ -40,13 +40,13 @@ class LocalLMEvalProvider(LMEvalProviderBase):
         """
         # Parse arguments to get the configuration
         config = self._parse_args_to_config(*args, **kwargs)
-        
+
         # Ensure we're using local mode
         if config.deployment_mode != DeploymentMode.LOCAL:
             config.deployment_mode = DeploymentMode.LOCAL
-            
+
         return self._evaluate_local(config, **kwargs)
-        
+
     def _evaluate_local(self, config: EvaluationProviderConfig, **kwargs) -> Dict[str, Any]:  # type: ignore
         """Run evaluation locally.
 
@@ -69,7 +69,7 @@ class LocalLMEvalProvider(LMEvalProviderBase):
 
         try:
             # Use device from config, or fallback to no_gpu flag if device not set
-            if hasattr(config, 'device') and config.device:
+            if hasattr(config, "device") and config.device:
                 device = config.device
             else:
                 # Fallback to no_gpu flag for backwards compatibility
@@ -139,4 +139,4 @@ class LocalLMEvalProvider(LMEvalProviderBase):
 
             return results
         except Exception as e:
-            raise RuntimeError(f"Evaluation failed: {str(e)}") from e 
+            raise RuntimeError(f"Evaluation failed: {str(e)}") from e

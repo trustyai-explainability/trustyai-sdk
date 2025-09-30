@@ -39,6 +39,7 @@ class KubernetesClientSingleton:
         try:
             import kubernetes
             from kubernetes import client
+
             return kubernetes, client
         except ImportError:
             raise ImportError(
@@ -64,9 +65,7 @@ class KubernetesClientSingleton:
 
             # Configure API client
             if kubeconfig:
-                kubernetes.config.load_kube_config(
-                    config_file=kubeconfig, context=context
-                )
+                kubernetes.config.load_kube_config(config_file=kubeconfig, context=context)
             else:
                 try:
                     # Try to load from within cluster first
@@ -496,7 +495,7 @@ class KubernetesDeployer:
                 version=version,
                 namespace=namespace,
                 plural=plural,
-                body=resource.to_dict()
+                body=resource.to_dict(),
             )
 
             # Check if creation was successful
@@ -511,6 +510,7 @@ class KubernetesDeployer:
             error_message = str(e)
             print(f"[DEBUG] Exception when deploying LMEvalJob: {error_message}")
             import traceback
+
             traceback.print_exc()
 
             # Create a more detailed error message
@@ -519,7 +519,9 @@ class KubernetesDeployer:
             elif "403" in error_message or "forbidden" in error_message.lower():
                 detailed_msg = f"Failed to deploy LMEvalJob (permission denied): {error_message}. Check RBAC permissions."
             elif "namespace" in error_message.lower() and "not found" in error_message.lower():
-                detailed_msg = f"Failed to deploy LMEvalJob: {error_message}. The namespace may not exist."
+                detailed_msg = (
+                    f"Failed to deploy LMEvalJob: {error_message}. The namespace may not exist."
+                )
             else:
                 detailed_msg = f"Failed to deploy LMEvalJob: {error_message}"
 
@@ -568,7 +570,7 @@ class KubernetesDeployer:
             print(f"Failed to deploy resource: {str(e)}")
             return False
 
-    def deploy_resources(self, resources:list[KubernetesResource]) -> bool:
+    def deploy_resources(self, resources: list[KubernetesResource]) -> bool:
         """Deploy multiple Kubernetes resources to the cluster.
 
         Args:
@@ -586,7 +588,7 @@ class KubernetesDeployer:
 
         # LMEvalJob resources need special handling
         for i, resource in enumerate(resources):
-            print(f"[DEBUG] Deploying resource {i+1}/{len(resources)}: {resource.kind}")
+            print(f"[DEBUG] Deploying resource {i + 1}/{len(resources)}: {resource.kind}")
             success, error = self.deploy_resource(resource)
             if not success:
                 print(f"[DEBUG] Failed to deploy {resource.kind}: {error}")

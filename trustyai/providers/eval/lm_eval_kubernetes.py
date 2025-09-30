@@ -50,9 +50,7 @@ class LMEvalJobConverter(KubernetesResourceConverter):
         # Create metadata with a UUID-based name that we control
         job_id = str(uuid.uuid4())[:8]  # Use first 8 chars of UUID
         job_name = f"evaljob-{job_id}"
-        metadata = {
-            "name": job_name
-        }
+        metadata = {"name": job_name}
 
         # Add namespace if specified - IMPORTANT: This must be set for proper deployment
         if "namespace" in config:
@@ -63,9 +61,7 @@ class LMEvalJobConverter(KubernetesResourceConverter):
         spec = {
             "model": model,
             "modelArgs": model_args,
-            "taskList": {
-                "taskNames": task_names
-            },
+            "taskList": {"taskNames": task_names},
             "logSamples": log_samples,
             "allowOnline": allow_online,
             "allowCodeExecution": allow_code_execution,
@@ -81,7 +77,7 @@ class LMEvalJobConverter(KubernetesResourceConverter):
             api_version="trustyai.opendatahub.io/v1alpha1",
             kind="LMEvalJob",
             metadata=metadata,
-            spec=spec
+            spec=spec,
         )
 
 
@@ -153,7 +149,7 @@ class KubernetesLMEvalProvider(LMEvalProviderBase):
             implementation="trustyai-operator",
             config=config,
             k8s_client=k8s_client,
-            namespace=namespace
+            namespace=namespace,
         )
         self.add_validator(self._operator_validator)
 
@@ -198,7 +194,7 @@ class KubernetesLMEvalProvider(LMEvalProviderBase):
         return await self._evaluate_kubernetes_async(config)
 
     async def _evaluate_kubernetes_async(self, config: EvaluationProviderConfig) -> dict[str, Any]:
-        """Asynchronous Kubernetes evaluation implementation.
+        """Asynchronous Kubernetes evaluation implementation using TrustyAI Kubernetes client.
 
         Args:
             config: Evaluation configuration
@@ -208,17 +204,20 @@ class KubernetesLMEvalProvider(LMEvalProviderBase):
         """
         # Debug logging
         print(f"[DEBUG - _evaluate_kubernetes_async] Config keys: {dir(config)}")
-        print(f"[DEBUG - _evaluate_kubernetes_async] Config namespace: {config.get_param('namespace')}")
+        print(
+            f"[DEBUG - _evaluate_kubernetes_async] Config namespace: {config.get_param('namespace')}"
+        )
 
         # Setup validators with config
         config_dict = config.__dict__.copy()
-        if hasattr(config, 'additional_params'):
+        if hasattr(config, "additional_params"):
             config_dict.update(config.additional_params)
 
-        # Get k8s_client if available
+        # Get k8s_client if available for validation
         k8s_client = None
         try:
             from trustyai.core.kubernetes import kubernetes_client
+
             if kubernetes_client.is_initialized:
                 k8s_client = kubernetes_client.client
             else:
@@ -242,76 +241,92 @@ class KubernetesLMEvalProvider(LMEvalProviderBase):
                 "message": "Kubernetes environment validation failed",
                 "provider": self.get_provider_name(),
                 "deployment_mode": DeploymentMode.KUBERNETES.value,
-                "error": "Environment validation failed"
+                "error": "Environment validation failed",
             }
 
-        # Generate Kubernetes resources and track the job name
-        resources = self.get_kubernetes_resources(config.__dict__)
+        # Create LMEvalJob using the new dataclass structure
+        from trustyai.core.lmevaljob import LMEvalJob, LMEvalJobSpec, Metadata, ModelArg, TaskList
+        import uuid
 
-        # Extract the job name from the generated resources
-        job_name = None
-        for resource in resources:
-            if resource.kind == "LMEvalJob":
-                job_name = resource.metadata.get("name")
-                break
+        # Get configuration parameters
+        model = config.get_param("model", "")
+        tasks = config.get_param("tasks", [])
+        limit = config.get_param("limit")
+        namespace = self._get_namespace_from_config(config)
+
+        # Create job metadata with unique name
+        job_id = str(uuid.uuid4())[:8]
+        job_name = f"evaljob-{job_id}"
+
+        metadata = Metadata(name=job_name, namespace=namespace)
+
+        # Create model arguments
+        model_args = [ModelArg(name="pretrained", value=model)]
+
+        # Create task list
+        task_list = TaskList(taskNames=tasks)
+
+        # Create job spec
+        spec = LMEvalJobSpec(
+            model="hf",
+            modelArgs=model_args,
+            taskList=task_list,
+            logSamples=True,
+            allowOnline=True,
+            allowCodeExecution=True,
+        )
+
+        # Add limit if specified
+        if limit is not None:
+            spec.limit = str(limit)
+            print(f"[DEBUG] Setting limit as string: {spec.limit}")
+
+        # Create the LMEvalJob
+        lm_eval_job = LMEvalJob(metadata=metadata, spec=spec)
 
         # Check if we should deploy the resources
         should_deploy = config.get_param("deploy", False)
         wait_for_completion = config.get_param("wait_for_completion", False)
         timeout = config.get_param("timeout", 300)  # 5 minutes default
 
-        # If deployment is requested, deploy the resources
-        deployment_status = "prepared"
-        deployment_message = "Resources ready for deployment"
-        error_info = None
+        # Get optional kubeconfig path and context
+        kubeconfig = config.get_param("kubeconfig", None)
+        context = config.get_param("context", None)
+
+        # Initialize TrustyAI Kubernetes client
+        from trustyai.core.trustyai_kubernetes_client import TrustyAIKubernetesClient
+
+        trustyai_client = TrustyAIKubernetesClient(kubeconfig=kubeconfig, context=context)
 
         # Generate YAML for display
-        yaml_resources = []
-        for resource in resources:
-            yaml_resources.append(resource.to_yaml())
+        yaml_content = trustyai_client.generate_yaml(lm_eval_job)
 
-        combined_yaml = "\n---\n".join(yaml_resources)
+        # If deployment is requested, submit the job
+        deployment_status = "prepared"
+        deployment_message = "LMEvalJob ready for deployment"
+        error_info = None
+        submitted_resource = None
 
         if should_deploy:
-            # Get optional kubeconfig path and context
-            kubeconfig = config.get_param("kubeconfig", None)
-            context = config.get_param("context", None)
+            print("🚀 Deploying LMEvalJob using TrustyAI Kubernetes client...")
 
-            # Create deployer
-            deployer = KubernetesDeployer(kubeconfig=kubeconfig, context=context)
+            # Submit the LMEvalJob
+            submitted_resource = trustyai_client.submit(lm_eval_job)
 
-            # Track detailed error messages from resource deployment
-            deployment_errors = []
-
-            # Deploy resources individually to capture detailed error messages
-            success = True
-            for _i, resource in enumerate(resources):
-                res_success, error_msg = deployer.deploy_resource(resource)
-                if not res_success:
-                    success = False
-                    if error_msg:
-                        deployment_errors.append(error_msg)
-                else:
-                    # Log successful deployment
-                    if resource.kind == "LMEvalJob":
-                        print(f"[DEBUG] Successfully deployed LMEvalJob: {job_name}")
-
-            if success:
+            if submitted_resource:
                 deployment_status = "deployed"
-                deployment_message = "Resources successfully deployed to Kubernetes cluster"
-
-                # Show the deployed LMEvalJob details
-                # Get namespace from config rather than CR metadata
-                namespace = self._get_namespace_from_config(config)
+                deployment_message = f"LMEvalJob successfully deployed to Kubernetes cluster"
                 deployment_message += f"\nCreated LMEvalJob: {job_name}"
                 deployment_message += f"\nNamespace: {namespace}"
 
+                print(f"[DEBUG] Successfully deployed LMEvalJob: {job_name}")
+
                 # If we should wait for completion, retrieve results
-                if wait_for_completion and job_name:
+                if wait_for_completion and submitted_resource:
                     print(f"[DEBUG] Waiting for completion of job: {job_name}")
                     try:
-                        job_results = await self._wait_for_job_completion_async(
-                            deployer, job_name, namespace, timeout
+                        job_results = await self._wait_for_job_completion_with_trustyai_client(
+                            submitted_resource, timeout
                         )
                         if job_results:
                             # Return results in the same format as local evaluation
@@ -320,16 +335,10 @@ class KubernetesLMEvalProvider(LMEvalProviderBase):
                     except Exception as e:
                         deployment_message += f"\nError retrieving results: {str(e)}"
                         error_info = str(e)
-
             else:
                 deployment_status = "failed"
-                deployment_message = "Failed to deploy resources to Kubernetes cluster"
-
-                # Provide detailed error message if available
-                if deployment_errors:
-                    error_info = deployment_errors[0]  # Use the first error message
-                else:
-                    error_info = "The deployment failed. Make sure the TrustyAI Operator is installed in your cluster."
+                deployment_message = "Failed to deploy LMEvalJob to Kubernetes cluster"
+                error_info = "The deployment failed. Make sure the TrustyAI Operator is installed in your cluster."
 
         # Return deployment info
         result = {
@@ -337,18 +346,24 @@ class KubernetesLMEvalProvider(LMEvalProviderBase):
             "message": deployment_message,
             "provider": self.get_provider_name(),
             "deployment_mode": DeploymentMode.KUBERNETES.value,
-            "resources_count": len(resources),
-            "resources": [r.to_dict() for r in resources],
-            "yaml": combined_yaml,  # Add combined YAML for easy display
+            "job_name": job_name,
+            "namespace": namespace,
+            "yaml": yaml_content,
         }
 
         # Add error info if present
         if error_info:
             result["error"] = error_info
 
+        # Add submitted resource info if available
+        if submitted_resource:
+            result["submitted_resource"] = {
+                "name": submitted_resource.name,
+                "namespace": submitted_resource.namespace,
+                "kind": submitted_resource.kind,
+            }
+
         return result
-
-
 
     async def _wait_for_job_completion_async(
         self, deployer: KubernetesDeployer, job_name: str, namespace: str, timeout: int
@@ -413,6 +428,71 @@ class KubernetesLMEvalProvider(LMEvalProviderBase):
         print(f"⏰ Timeout waiting for job {job_name} to complete")
         return None
 
+    async def _wait_for_job_completion_with_trustyai_client(
+        self, submitted_resource, timeout: int
+    ) -> dict[str, Any] | None:
+        """Wait for a LMEvalJob to complete using TrustyAI client and retrieve its results.
+
+        Args:
+            submitted_resource: SubmittedResource instance from TrustyAI client
+            timeout: Maximum time to wait in seconds
+
+        Returns:
+            Dictionary with evaluation results or None if not available
+        """
+        import asyncio
+        import time
+        import json
+
+        start_time = time.time()
+        check_interval = 10  # Check every 10 seconds
+
+        print(f"⏳ Waiting for job {submitted_resource.name} to complete...")
+
+        while time.time() - start_time < timeout:
+            try:
+                # Get the job status using the submitted resource
+                job_status = submitted_resource.get_status()
+
+                if job_status:
+                    state = job_status.get("state", "").lower()
+                    print(f"[DEBUG] Job {submitted_resource.name} state: {state}")
+
+                    if state == "complete":
+                        # Job completed successfully, retrieve results
+                        results_json = job_status.get("results")
+                        if results_json:
+                            try:
+                                results = json.loads(results_json)
+                                print(f"✅ Job {submitted_resource.name} completed successfully!")
+                                return results
+                            except json.JSONDecodeError as e:
+                                print(f"[DEBUG] Failed to parse results JSON: {e}")
+                                return None
+                        else:
+                            print("[DEBUG] Job completed but no results found")
+                            return None
+
+                    elif state in ["failed", "error"]:
+                        # Job failed
+                        message = job_status.get("message", "Job failed")
+                        print(f"❌ Job {submitted_resource.name} failed: {message}")
+                        return None
+
+                    else:
+                        # Job still running
+                        print(f"🔄 Job {submitted_resource.name} still running (state: {state})...")
+
+                # Use asyncio.sleep instead of time.sleep for async compatibility
+                await asyncio.sleep(check_interval)
+
+            except Exception as e:
+                print(f"[DEBUG] Error checking job status: {e}")
+                await asyncio.sleep(check_interval)
+
+        print(f"⏰ Timeout waiting for job {submitted_resource.name} to complete")
+        return None
+
     def _get_namespace_from_config(self, config: EvaluationProviderConfig) -> str:
         """Extract namespace from configuration with fallback to default.
 
@@ -424,13 +504,15 @@ class KubernetesLMEvalProvider(LMEvalProviderBase):
         """
         # Get namespace directly from additional_params which contains CLI parameters
         namespace = None
-        if hasattr(config, 'get_param'):
+        if hasattr(config, "get_param"):
             namespace = config.get_param("namespace")
 
         # If not found, try the config dict directly
-        if not namespace and hasattr(config, '__dict__'):
+        if not namespace and hasattr(config, "__dict__"):
             config_dict = config.__dict__
-            if "additional_params" in config_dict and isinstance(config_dict["additional_params"], dict):
+            if "additional_params" in config_dict and isinstance(
+                config_dict["additional_params"], dict
+            ):
                 namespace = config_dict["additional_params"].get("namespace")
 
             # If not in additional_params, try the top-level config
@@ -474,7 +556,7 @@ class KubernetesLMEvalProvider(LMEvalProviderBase):
                 version="v1alpha1",
                 namespace=namespace,
                 plural="lmevaljobs",
-                name=job_name
+                name=job_name,
             )
 
             # Extract status information
@@ -519,12 +601,7 @@ class KubernetesLMEvalProvider(LMEvalProviderBase):
         # Create LMEvalJob custom resource
         lm_eval_job_config = {
             "model": "hf",
-            "model_args": [
-                {
-                    "name": "pretrained",
-                    "value": model
-                }
-            ],
+            "model_args": [{"name": "pretrained", "value": model}],
             "task_names": tasks,
             "log_samples": True,
             "allow_online": True,
@@ -553,38 +630,38 @@ class KubernetesLMEvalProvider(LMEvalProviderBase):
 
 def get_lmeval_job_results(job_name: str, namespace: str = "test") -> dict[str, Any] | None:
     """Retrieve results from a completed LMEvalJob.
-    
+
     Args:
         job_name: Name of the LMEvalJob (e.g., "evaljob-qjhhz")
         namespace: Kubernetes namespace
-        
+
     Returns:
         Dictionary with evaluation results or None if not available
     """
     try:
         from trustyai.core.kubernetes import kubernetes_client
-        
+
         # Initialize client if not already done
         if not kubernetes_client.is_initialized:
             if not kubernetes_client.initialize():
                 print("❌ Failed to initialize Kubernetes client")
                 return None
-        
+
         # Get the LMEvalJob custom resource
         response = kubernetes_client.custom_objects_api.get_namespaced_custom_object(
             group="trustyai.opendatahub.io",
             version="v1alpha1",
             namespace=namespace,
             plural="lmevaljobs",
-            name=job_name
+            name=job_name,
         )
-        
+
         # Extract status information
         status = response.get("status", {})
         state = status.get("state", "").lower()
-        
+
         print(f"📊 Job {job_name} status: {state}")
-        
+
         if state == "complete":
             results_json = status.get("results")
             if results_json:
@@ -595,7 +672,7 @@ def get_lmeval_job_results(job_name: str, namespace: str = "test") -> dict[str, 
             return None
         print(f"⏳ Job not completed yet (state: {state})")
         return None
-        
+
     except Exception as e:
         print(f"❌ Error retrieving job results: {e}")
         return None

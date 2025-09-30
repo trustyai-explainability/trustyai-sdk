@@ -28,7 +28,7 @@ class TrustyAIResourceConverter:
             api_version=resource_dict["apiVersion"],
             kind=resource_dict["kind"],
             metadata=resource_dict["metadata"],
-            spec=resource_dict["spec"]
+            spec=resource_dict["spec"],
         )
 
 
@@ -75,7 +75,7 @@ class SubmittedResource:
                 version=self._version,
                 namespace=self.namespace,
                 plural=self._plural,
-                name=self.name
+                name=self.name,
             )
             return response.get("status", {})
         except Exception as e:
@@ -97,7 +97,7 @@ class SubmittedResource:
                 version=self._version,
                 namespace=self.namespace,
                 plural=self._plural,
-                name=self.name
+                name=self.name,
             )
         except Exception as e:
             print(f"Error getting {self.kind}: {str(e)}")
@@ -118,9 +118,12 @@ class SubmittedResource:
                 version=self._version,
                 namespace=self.namespace,
                 plural=self._plural,
-                name=self.name
+                name=self.name,
             )
-            return True, f"Successfully deleted {self.kind} '{self.name}' from namespace '{self.namespace}'"
+            return (
+                True,
+                f"Successfully deleted {self.kind} '{self.name}' from namespace '{self.namespace}'",
+            )
         except Exception as e:
             return False, f"Error deleting {self.kind}: {str(e)}"
 
@@ -138,8 +141,7 @@ class SubmittedResource:
 
             # List pods with label selector for the job
             pods = core_v1_api.list_namespaced_pod(
-                namespace=self.namespace,
-                label_selector=f"job-name={self.name}"
+                namespace=self.namespace, label_selector=f"job-name={self.name}"
             )
 
             if not pods.items:
@@ -147,10 +149,7 @@ class SubmittedResource:
 
             # Get logs from the first pod
             pod_name = pods.items[0].metadata.name
-            logs = core_v1_api.read_namespaced_pod_log(
-                name=pod_name,
-                namespace=self.namespace
-            )
+            logs = core_v1_api.read_namespaced_pod_log(name=pod_name, namespace=self.namespace)
 
             return logs
         except Exception as e:
@@ -266,13 +265,15 @@ class TrustyAIKubernetesClient:
                 name=resource.metadata.name,
                 namespace=resource.metadata.namespace or "default",
                 kind=resource.kind,
-                deployer=self.deployer
+                deployer=self.deployer,
             )
         else:
             print(f"Failed to submit {resource.kind}: {message}")
             return None
 
-    def list_resources(self, namespace: str = "default", kind: str = "LMEvalJob") -> list[SubmittedResource]:
+    def list_resources(
+        self, namespace: str = "default", kind: str = "LMEvalJob"
+    ) -> list[SubmittedResource]:
         """List all TrustyAI resources of a specific kind in a namespace.
 
         Args:
@@ -291,25 +292,26 @@ class TrustyAIKubernetesClient:
                 group="trustyai.opendatahub.io",
                 version="v1alpha1",
                 namespace=namespace,
-                plural=plural
+                plural=plural,
             )
 
             resources = []
             for item in response.get("items", []):
                 name = item["metadata"]["name"]
-                resources.append(SubmittedResource(
-                    name=name,
-                    namespace=namespace,
-                    kind=kind,
-                    deployer=self.deployer
-                ))
+                resources.append(
+                    SubmittedResource(
+                        name=name, namespace=namespace, kind=kind, deployer=self.deployer
+                    )
+                )
 
             return resources
         except Exception as e:
             print(f"Error listing {kind} resources: {str(e)}")
             return []
 
-    def get_resource(self, name: str, namespace: str = "default", kind: str = "LMEvalJob") -> SubmittedResource | None:
+    def get_resource(
+        self, name: str, namespace: str = "default", kind: str = "LMEvalJob"
+    ) -> SubmittedResource | None:
         """Get a handle to an existing TrustyAI resource.
 
         Args:
@@ -321,10 +323,7 @@ class TrustyAIKubernetesClient:
             SubmittedResource instance or None if not found
         """
         resource = SubmittedResource(
-            name=name,
-            namespace=namespace,
-            kind=kind,
-            deployer=self.deployer
+            name=name, namespace=namespace, kind=kind, deployer=self.deployer
         )
 
         # Check if the resource exists
@@ -356,7 +355,7 @@ class TrustyAIKubernetesClient:
         """
         try:
             yaml_content = self.generate_yaml(resource)
-            with open(filepath, 'w') as f:
+            with open(filepath, "w") as f:
                 f.write(yaml_content)
             return True
         except Exception as e:

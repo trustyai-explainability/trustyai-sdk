@@ -64,20 +64,20 @@ class EvaluationProviderConfig:
             f"  Deployment Mode: {self.deployment_mode.value}",
             f"  Device: {self.device}",
         ]
-        
+
         # Add optional parameters if they have values
         if self.limit is not None:
             lines.append(f"  Limit: {self.limit}")
-        
+
         if self.metrics:
             lines.append(f"  Metrics: {self.metrics}")
-        
+
         # Add any additional parameters
         if self.additional_params:
             lines.append("  Additional Parameters:")
             for key, value in sorted(self.additional_params.items()):
                 lines.append(f"    {key}: {value}")
-        
+
         return "\n".join(lines)
 
     def __repr__(self) -> str:
@@ -115,6 +115,7 @@ class EvalProvider(BaseProvider):
     def _get_validator(self) -> Any:
         """Get validator - stub implementation."""
         from .providers import LocalEvaluationValidator
+
         return LocalEvaluationValidator(self.implementation, self.config)
 
     def execute(self, request: Any) -> Any:
@@ -143,7 +144,6 @@ class EvalProvider(BaseProvider):
         Returns:
             Dictionary of evaluation results
         """
-
 
     @abc.abstractmethod
     def list_available_datasets(self) -> list[str]:

@@ -20,10 +20,7 @@ class TestTrustyAIResourceConverter:
         """Test converting LMEvalJob to KubernetesResource."""
         # Create a simple LMEvalJob
         job = LMEvalJobBuilder.simple(
-            name="test-job",
-            model_name="test-model",
-            tasks=["task1", "task2"],
-            namespace="test-ns"
+            name="test-job", model_name="test-model", tasks=["task1", "task2"], namespace="test-ns"
         )
 
         # Convert to KubernetesResource
@@ -48,10 +45,7 @@ class TestSubmittedResource:
         self.mock_deployer._custom_objects_api = self.mock_custom_objects_api
 
         self.resource = SubmittedResource(
-            name="test-resource",
-            namespace="test-ns",
-            kind="LMEvalJob",
-            deployer=self.mock_deployer
+            name="test-resource", namespace="test-ns", kind="LMEvalJob", deployer=self.mock_deployer
         )
 
     def test_init(self):
@@ -63,12 +57,7 @@ class TestSubmittedResource:
 
     def test_get_status_success(self):
         """Test successful status retrieval."""
-        mock_response = {
-            "status": {
-                "phase": "Running",
-                "message": "Job is running"
-            }
-        }
+        mock_response = {"status": {"phase": "Running", "message": "Job is running"}}
         self.mock_custom_objects_api.get_namespaced_custom_object.return_value = mock_response
 
         status = self.resource.get_status()
@@ -79,7 +68,7 @@ class TestSubmittedResource:
             version="v1alpha1",
             namespace="test-ns",
             plural="lmevaljobs",
-            name="test-resource"
+            name="test-resource",
         )
 
     def test_get_status_failure(self):
@@ -92,9 +81,11 @@ class TestSubmittedResource:
 
     def test_get_status_exception(self):
         """Test status retrieval with exception."""
-        self.mock_custom_objects_api.get_namespaced_custom_object.side_effect = Exception("API Error")
+        self.mock_custom_objects_api.get_namespaced_custom_object.side_effect = Exception(
+            "API Error"
+        )
 
-        with patch('builtins.print') as mock_print:
+        with patch("builtins.print") as mock_print:
             status = self.resource.get_status()
 
         assert status is None
@@ -141,13 +132,13 @@ class TestSubmittedResource:
 
         assert self.resource.is_failed() is True
 
-    @patch('time.sleep')
+    @patch("time.sleep")
     def test_wait_for_completion_success(self, mock_sleep):
         """Test waiting for completion - success case."""
         # First call returns running, second returns completed
         self.mock_custom_objects_api.get_namespaced_custom_object.side_effect = [
             {"status": {"phase": "Running"}},
-            {"status": {"phase": "Succeeded"}}
+            {"status": {"phase": "Succeeded"}},
         ]
 
         success, message = self.resource.wait_for_completion(timeout_seconds=30)
@@ -155,7 +146,7 @@ class TestSubmittedResource:
         assert success is True
         assert "completed successfully" in message
 
-    @patch('time.sleep')
+    @patch("time.sleep")
     def test_wait_for_completion_failure(self, mock_sleep):
         """Test waiting for completion - failure case."""
         self.mock_custom_objects_api.get_namespaced_custom_object.return_value = {
@@ -182,7 +173,7 @@ class TestTrustyAIKubernetesClient:
 
     def setup_method(self):
         """Set up test fixtures."""
-        with patch('trustyai.core.trustyai_kubernetes_client.KubernetesDeployer'):
+        with patch("trustyai.core.trustyai_kubernetes_client.KubernetesDeployer"):
             self.client = TrustyAIKubernetesClient()
             self.mock_deployer = self.client.deployer
 
@@ -192,22 +183,20 @@ class TestTrustyAIKubernetesClient:
 
     def test_init_with_params(self):
         """Test client initialization with parameters."""
-        with patch('trustyai.core.trustyai_kubernetes_client.KubernetesDeployer') as mock_deployer_class:
+        with patch(
+            "trustyai.core.trustyai_kubernetes_client.KubernetesDeployer"
+        ) as mock_deployer_class:
             client = TrustyAIKubernetesClient(kubeconfig="/path/to/config", context="test-context")
 
             mock_deployer_class.assert_called_once_with(
-                kubeconfig="/path/to/config",
-                context="test-context"
+                kubeconfig="/path/to/config", context="test-context"
             )
 
     def test_submit_success(self):
         """Test successful resource submission."""
         # Create test job
         job = LMEvalJobBuilder.simple(
-            name="test-job",
-            model_name="test-model",
-            tasks=["task1"],
-            namespace="test-ns"
+            name="test-job", model_name="test-model", tasks=["task1"], namespace="test-ns"
         )
 
         # Mock successful deployment
@@ -225,16 +214,12 @@ class TestTrustyAIKubernetesClient:
 
     def test_submit_failure(self):
         """Test failed resource submission."""
-        job = LMEvalJobBuilder.simple(
-            name="test-job",
-            model_name="test-model",
-            tasks=["task1"]
-        )
+        job = LMEvalJobBuilder.simple(name="test-job", model_name="test-model", tasks=["task1"])
 
         # Mock failed deployment
         self.mock_deployer.deploy_resource.return_value = (False, "Deployment failed")
 
-        with patch('builtins.print') as mock_print:
+        with patch("builtins.print") as mock_print:
             submitted = self.client.submit(job)
 
         assert submitted is None
@@ -246,10 +231,7 @@ class TestTrustyAIKubernetesClient:
         self.mock_deployer._initialize_client.return_value = True
         self.mock_deployer._custom_objects_api = Mock()
         self.mock_deployer._custom_objects_api.list_namespaced_custom_object.return_value = {
-            "items": [
-                {"metadata": {"name": "job1"}},
-                {"metadata": {"name": "job2"}}
-            ]
+            "items": [{"metadata": {"name": "job1"}}, {"metadata": {"name": "job2"}}]
         }
 
         resources = self.client.list_resources(namespace="test-ns")
@@ -268,7 +250,7 @@ class TestTrustyAIKubernetesClient:
 
     def test_get_resource_exists(self):
         """Test getting an existing resource."""
-        with patch.object(SubmittedResource, 'get_full_resource') as mock_get_full:
+        with patch.object(SubmittedResource, "get_full_resource") as mock_get_full:
             mock_get_full.return_value = {"metadata": {"name": "test-job"}}
 
             resource = self.client.get_resource("test-job", "test-ns")
@@ -279,7 +261,7 @@ class TestTrustyAIKubernetesClient:
 
     def test_get_resource_not_exists(self):
         """Test getting a non-existent resource."""
-        with patch.object(SubmittedResource, 'get_full_resource') as mock_get_full:
+        with patch.object(SubmittedResource, "get_full_resource") as mock_get_full:
             mock_get_full.return_value = None
 
             resource = self.client.get_resource("nonexistent", "test-ns")
@@ -288,11 +270,7 @@ class TestTrustyAIKubernetesClient:
 
     def test_generate_yaml(self):
         """Test YAML generation."""
-        job = LMEvalJobBuilder.simple(
-            name="test-job",
-            model_name="test-model",
-            tasks=["task1"]
-        )
+        job = LMEvalJobBuilder.simple(name="test-job", model_name="test-model", tasks=["task1"])
 
         yaml_content = self.client.generate_yaml(job)
 
@@ -302,32 +280,24 @@ class TestTrustyAIKubernetesClient:
 
     def test_save_yaml_to_file_success(self):
         """Test successful YAML file saving."""
-        job = LMEvalJobBuilder.simple(
-            name="test-job",
-            model_name="test-model",
-            tasks=["task1"]
-        )
+        job = LMEvalJobBuilder.simple(name="test-job", model_name="test-model", tasks=["task1"])
 
-        with patch('builtins.open', create=True) as mock_open:
+        with patch("builtins.open", create=True) as mock_open:
             mock_file = MagicMock()
             mock_open.return_value.__enter__.return_value = mock_file
 
             result = self.client.save_yaml_to_file(job, "/path/to/file.yaml")
 
             assert result is True
-            mock_open.assert_called_once_with("/path/to/file.yaml", 'w')
+            mock_open.assert_called_once_with("/path/to/file.yaml", "w")
             mock_file.write.assert_called_once()
 
     def test_save_yaml_to_file_failure(self):
         """Test YAML file saving failure."""
-        job = LMEvalJobBuilder.simple(
-            name="test-job",
-            model_name="test-model",
-            tasks=["task1"]
-        )
+        job = LMEvalJobBuilder.simple(name="test-job", model_name="test-model", tasks=["task1"])
 
-        with patch('builtins.open', side_effect=IOError("Permission denied")):
-            with patch('builtins.print') as mock_print:
+        with patch("builtins.open", side_effect=IOError("Permission denied")):
+            with patch("builtins.print") as mock_print:
                 result = self.client.save_yaml_to_file(job, "/invalid/path.yaml")
 
             assert result is False
@@ -340,10 +310,7 @@ class TestLMEvalJobBuilderSimple:
     def test_simple_method(self):
         """Test the simple static method."""
         job = LMEvalJobBuilder.simple(
-            name="simple-test",
-            model_name="gpt-2",
-            tasks=["task1", "task2"],
-            namespace="custom-ns"
+            name="simple-test", model_name="gpt-2", tasks=["task1", "task2"], namespace="custom-ns"
         )
 
         assert job.metadata.name == "simple-test"
@@ -356,21 +323,14 @@ class TestLMEvalJobBuilderSimple:
 
     def test_simple_method_default_namespace(self):
         """Test the simple method with default namespace."""
-        job = LMEvalJobBuilder.simple(
-            name="simple-test",
-            model_name="gpt-2",
-            tasks=["task1"]
-        )
+        job = LMEvalJobBuilder.simple(name="simple-test", model_name="gpt-2", tasks=["task1"])
 
         assert job.metadata.namespace == "default"
 
     def test_simple_method_with_limit_int(self):
         """Test the simple method with integer limit."""
         job = LMEvalJobBuilder.simple(
-            name="simple-test",
-            model_name="gpt-2",
-            tasks=["task1"],
-            limit=100
+            name="simple-test", model_name="gpt-2", tasks=["task1"], limit=100
         )
 
         assert job.spec.limit == "100"
@@ -378,21 +338,14 @@ class TestLMEvalJobBuilderSimple:
     def test_simple_method_with_limit_str(self):
         """Test the simple method with string limit."""
         job = LMEvalJobBuilder.simple(
-            name="simple-test",
-            model_name="gpt-2",
-            tasks=["task1"],
-            limit="50"
+            name="simple-test", model_name="gpt-2", tasks=["task1"], limit="50"
         )
 
         assert job.spec.limit == "50"
 
     def test_simple_method_with_no_limit(self):
         """Test the simple method without limit."""
-        job = LMEvalJobBuilder.simple(
-            name="simple-test",
-            model_name="gpt-2",
-            tasks=["task1"]
-        )
+        job = LMEvalJobBuilder.simple(name="simple-test", model_name="gpt-2", tasks=["task1"])
 
         assert job.spec.limit is None
 
@@ -403,7 +356,7 @@ class TestLMEvalJobBuilderSimple:
             model_name="microsoft/DialoGPT-medium",
             tasks=["hellaswag", "arc_easy"],
             namespace="production",
-            limit=200
+            limit=200,
         )
 
         assert job.metadata.name == "comprehensive-test"
@@ -422,9 +375,7 @@ class TestDeprecatedFunction:
 
         with pytest.warns(DeprecationWarning, match="create_simple_lmeval_job is deprecated"):
             job = create_simple_lmeval_job(
-                name="deprecated-test",
-                model_name="test-model",
-                tasks=["task1"]
+                name="deprecated-test", model_name="test-model", tasks=["task1"]
             )
 
         # Verify it still works
@@ -441,7 +392,7 @@ class TestDeprecatedFunction:
                 model_name="test-model",
                 tasks=["task1"],
                 namespace="test-ns",
-                limit=42
+                limit=42,
             )
 
         # Verify it works with all parameters

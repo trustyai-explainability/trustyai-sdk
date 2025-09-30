@@ -30,8 +30,8 @@ class KubernetesConnectivityValidator(KubernetesValidator):
                     message="Failed to connect to Kubernetes cluster",
                     details={
                         "error": "kubernetes_client_init_failed",
-                        "suggestion": "Ensure you have a valid kubeconfig file and cluster access"
-                    }
+                        "suggestion": "Ensure you have a valid kubeconfig file and cluster access",
+                    },
                 )
 
         try:
@@ -48,8 +48,8 @@ class KubernetesConnectivityValidator(KubernetesValidator):
                 details={
                     "namespace_count": namespace_count,
                     "sample_namespaces": namespace_names,
-                    "cluster_version": self._get_cluster_version()
-                }
+                    "cluster_version": self._get_cluster_version(),
+                },
             )
 
         except Exception as e:
@@ -59,8 +59,8 @@ class KubernetesConnectivityValidator(KubernetesValidator):
                 details={
                     "error": "cluster_connection_failed",
                     "exception": str(e),
-                    "suggestion": "Check your kubeconfig and cluster access"
-                }
+                    "suggestion": "Check your kubeconfig and cluster access",
+                },
             )
 
     def _get_cluster_version(self) -> str:
@@ -77,7 +77,9 @@ class KubernetesConnectivityValidator(KubernetesValidator):
 class TrustyAIOperatorValidator(KubernetesValidator):
     """Validator for checking if the TrustyAI service operator is deployed in the cluster."""
 
-    def __init__(self, implementation: str, config: dict, k8s_client=None, namespace: str = "trustyai-system"):
+    def __init__(
+        self, implementation: str, config: dict, k8s_client=None, namespace: str = "trustyai-system"
+    ):
         """Initialize the TrustyAI operator validator.
 
         Args:
@@ -103,8 +105,8 @@ class TrustyAIOperatorValidator(KubernetesValidator):
                     message="Failed to initialize Kubernetes client with default configuration",
                     details={
                         "error": "kubernetes_client_init_failed",
-                        "suggestion": "Ensure you have a valid kubeconfig file and cluster access"
-                    }
+                        "suggestion": "Ensure you have a valid kubeconfig file and cluster access",
+                    },
                 )
         return self._validate_with_client()
 
@@ -127,8 +129,10 @@ class TrustyAIOperatorValidator(KubernetesValidator):
                     # Fallback: search by deployment name pattern
                     deployments = apps_v1_api.list_deployment_for_all_namespaces()
                     trustyai_deployments = [
-                        dep for dep in deployments.items
-                        if "trustyai" in dep.metadata.name.lower() and "operator" in dep.metadata.name.lower()
+                        dep
+                        for dep in deployments.items
+                        if "trustyai" in dep.metadata.name.lower()
+                        and "operator" in dep.metadata.name.lower()
                     ]
 
                     if not trustyai_deployments:
@@ -140,8 +144,8 @@ class TrustyAIOperatorValidator(KubernetesValidator):
                                 "searched_namespaces": "all",
                                 "label_selector": label_selector,
                                 "client_provided": True,
-                                "suggestion": "Install TrustyAI operator with documentation: https://trustyai.org/docs/main/trustyai-operator"
-                            }
+                                "suggestion": "Install TrustyAI operator with documentation: https://trustyai.org/docs/main/trustyai-operator",
+                            },
                         )
 
                     deployments.items = trustyai_deployments
@@ -161,8 +165,8 @@ class TrustyAIOperatorValidator(KubernetesValidator):
                             "ready_replicas": deployment.status.ready_replicas,
                             "total_replicas": deployment.status.replicas,
                             "client_provided": True,
-                            "found_by": "label_selector" if deployments.items else "name_pattern"
-                        }
+                            "found_by": "label_selector" if deployments.items else "name_pattern",
+                        },
                     )
                 return ValidationResult(
                     is_valid=False,
@@ -173,8 +177,8 @@ class TrustyAIOperatorValidator(KubernetesValidator):
                         "ready_replicas": deployment.status.ready_replicas or 0,
                         "total_replicas": deployment.status.replicas or 0,
                         "client_provided": True,
-                        "suggestion": f"Check operator logs: kubectl logs -n {namespace} deployment/{deployment.metadata.name}"
-                    }
+                        "suggestion": f"Check operator logs: kubectl logs -n {namespace} deployment/{deployment.metadata.name}",
+                    },
                 )
 
             except Exception as e:
@@ -184,8 +188,8 @@ class TrustyAIOperatorValidator(KubernetesValidator):
                     details={
                         "error": "deployment_search_failed",
                         "client_provided": True,
-                        "exception": str(e)
-                    }
+                        "exception": str(e),
+                    },
                 )
 
         except Exception as e:
@@ -195,8 +199,8 @@ class TrustyAIOperatorValidator(KubernetesValidator):
                 details={
                     "error": "client_validation_failed",
                     "client_provided": True,
-                    "exception": str(e)
-                }
+                    "exception": str(e),
+                },
             )
 
     def check_custom_resource_definitions(self) -> ValidationResult:
@@ -213,8 +217,8 @@ class TrustyAIOperatorValidator(KubernetesValidator):
                     message="Failed to initialize Kubernetes client with default configuration",
                     details={
                         "error": "kubernetes_client_init_failed",
-                        "suggestion": "Ensure you have a valid kubeconfig file and cluster access"
-                    }
+                        "suggestion": "Ensure you have a valid kubeconfig file and cluster access",
+                    },
                 )
         return self._check_crds_with_client()
 
@@ -227,7 +231,7 @@ class TrustyAIOperatorValidator(KubernetesValidator):
             expected_crds = [
                 "lmevaljobs.trustyai.redhat.com",
                 "explanations.trustyai.redhat.com",
-                "biasdetections.trustyai.redhat.com"
+                "biasdetections.trustyai.redhat.com",
             ]
 
             missing_crds = []
@@ -241,10 +245,7 @@ class TrustyAIOperatorValidator(KubernetesValidator):
                 return ValidationResult(
                     is_valid=True,
                     message="All TrustyAI Custom Resource Definitions are installed",
-                    details={
-                        "crds": expected_crds,
-                        "client_provided": True
-                    }
+                    details={"crds": expected_crds, "client_provided": True},
                 )
             else:
                 return ValidationResult(
@@ -254,17 +255,13 @@ class TrustyAIOperatorValidator(KubernetesValidator):
                         "expected_crds": expected_crds,
                         "missing_crds": missing_crds,
                         "client_provided": True,
-                        "suggestion": "Install TrustyAI operator to get the required CRDs"
-                    }
+                        "suggestion": "Install TrustyAI operator to get the required CRDs",
+                    },
                 )
 
         except Exception as e:
             return ValidationResult(
                 is_valid=False,
                 message=f"Failed to check TrustyAI CRDs with client: {str(e)}",
-                details={
-                    "error": "crd_check_failed",
-                    "client_provided": True,
-                    "exception": str(e)
-                }
+                details={"error": "crd_check_failed", "client_provided": True, "exception": str(e)},
             )

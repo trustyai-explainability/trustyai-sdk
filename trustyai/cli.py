@@ -115,8 +115,12 @@ def info(verbose):
             table.add_column("Type", style="green")
 
             # Filter out generic providers and add rows for concrete implementations only
-            generic_provider_names = {"EvaluationProvider", "ExplainabilityProvider", "BiasDetectionProvider"}
-            
+            generic_provider_names = {
+                "EvaluationProvider",
+                "ExplainabilityProvider",
+                "BiasDetectionProvider",
+            }
+
             for provider_type, provider_list in providers.items():
                 for provider_info in provider_list:
                     provider_name = provider_info["name"]
@@ -140,7 +144,7 @@ def list_eval_providers():
     """List available evaluation providers."""
     # Ensure providers are imported and registered
     _import_eval_providers()
-    
+
     providers = ProviderRegistry.list_providers("eval")
 
     if not providers or "eval" not in providers or not providers["eval"]:
@@ -165,12 +169,12 @@ def list_eval_providers():
         # Check which modes are available
         local_available = "✓" if "local" in deployment_modes else "✗"
         k8s_available = "✓" if "kubernetes" in deployment_modes else "✗"
-        
+
         table.add_row(
             provider_info["name"],
             provider_info["description"].split("\n")[0],  # Just the first line
             local_available,
-            k8s_available
+            k8s_available,
         )
 
     # Print the table
@@ -314,10 +318,10 @@ class NumpyJSONEncoder(json.JSONEncoder):
 @eval.command("execute")
 @click.option("--provider", "-p", required=True, help="Name of the evaluation provider")
 @click.option(
-    "--execution-mode", 
-    type=click.Choice(["local", "kubernetes"]), 
+    "--execution-mode",
+    type=click.Choice(["local", "kubernetes"]),
     default="local",
-    help="Execution mode (default: local)"
+    help="Execution mode (default: local)",
 )
 @click.option("--model", required=True, help="Model identifier/path")
 @click.option("--tasks", required=True, help="Comma-separated list of evaluation tasks")
@@ -340,8 +344,25 @@ class NumpyJSONEncoder(json.JSONEncoder):
 @click.option("--dry-run", is_flag=True, help="Validate configuration without executing")
 @click.option("--watch", is_flag=True, help="Watch Kubernetes job progress (kubernetes mode only)")
 @click.option("--force", is_flag=True, help="Force execution despite validation warnings")
-def execute_eval(provider, execution_mode, model, tasks, limit, batch_size, output, format, 
-                namespace, cpu, memory, image, dataset, parameters, dry_run, watch, force):
+def execute_eval(
+    provider,
+    execution_mode,
+    model,
+    tasks,
+    limit,
+    batch_size,
+    output,
+    format,
+    namespace,
+    cpu,
+    memory,
+    image,
+    dataset,
+    parameters,
+    dry_run,
+    watch,
+    force,
+):
     """Execute model evaluation with specified provider and execution mode.
     
     This unified command supports both local and Kubernetes execution modes.
@@ -363,7 +384,7 @@ def execute_eval(provider, execution_mode, model, tasks, limit, batch_size, outp
     """
     # Ensure providers are imported and registered
     _import_eval_providers()
-    
+
     provider_class = ProviderRegistry.get_provider("eval", provider)
 
     if not provider_class:
@@ -374,12 +395,13 @@ def execute_eval(provider, execution_mode, model, tasks, limit, batch_size, outp
 
     # Parse tasks
     task_list = [task.strip() for task in tasks.split(",")]
-    
+
     # Parse additional parameters if provided
     extra_params = {}
     if parameters:
         try:
             import json
+
             extra_params = json.loads(parameters)
         except json.JSONDecodeError as e:
             click.echo(f"Error: Invalid JSON in --parameters: {e}")
@@ -389,14 +411,18 @@ def execute_eval(provider, execution_mode, model, tasks, limit, batch_size, outp
     try:
         provider_instance = provider_class()
         provider_instance.initialize()
-        
+
         # Convert execution mode string to enum
-        requested_mode = ExecutionMode.LOCAL if execution_mode == "local" else ExecutionMode.KUBERNETES
-        
+        requested_mode = (
+            ExecutionMode.LOCAL if execution_mode == "local" else ExecutionMode.KUBERNETES
+        )
+
         # Validate execution mode support
         if not provider_instance.is_mode_supported(requested_mode):
             supported_modes = [mode.value for mode in provider_instance.supported_deployment_modes]
-            click.echo(f"Error: Provider '{provider}' does not support '{execution_mode}' execution mode")
+            click.echo(
+                f"Error: Provider '{provider}' does not support '{execution_mode}' execution mode"
+            )
             click.echo(f"Supported modes: {', '.join(supported_modes)}")
             return
 
@@ -405,13 +431,13 @@ def execute_eval(provider, execution_mode, model, tasks, limit, batch_size, outp
             if not namespace:
                 click.echo("Error: --namespace is required for kubernetes execution mode")
                 return
-        
+
         # Display configuration
         click.echo(f"Provider: {provider}")
         click.echo(f"Execution mode: {execution_mode}")
         click.echo(f"Model: {model}")
         click.echo(f"Tasks: {', '.join(task_list)}")
-        
+
         if limit:
             click.echo(f"Limit: {limit}")
         if batch_size:
@@ -429,14 +455,14 @@ def execute_eval(provider, execution_mode, model, tasks, limit, batch_size, outp
 
         # Create configuration object
         from .core.eval import EvaluationProviderConfig
-        
+
         config_params = {
             "evaluation_name": f"eval_{'_'.join(task_list)}",
             "model": model,
             "tasks": task_list,
             "deployment_mode": requested_mode,
         }
-        
+
         # Add optional parameters
         if limit:
             config_params["limit"] = limit
@@ -444,7 +470,7 @@ def execute_eval(provider, execution_mode, model, tasks, limit, batch_size, outp
             config_params["batch_size"] = batch_size
         if dataset:
             config_params["dataset"] = dataset
-            
+
         # Add kubernetes-specific parameters
         if execution_mode == "kubernetes":
             config_params["namespace"] = namespace
@@ -454,10 +480,10 @@ def execute_eval(provider, execution_mode, model, tasks, limit, batch_size, outp
                 config_params["memory"] = memory
             if image:
                 config_params["image"] = image
-                
+
         # Add extra parameters
         config_params.update(extra_params)
-        
+
         config = EvaluationProviderConfig(**config_params)
 
         # Dry run mode - validate only
@@ -470,7 +496,7 @@ def execute_eval(provider, execution_mode, model, tasks, limit, batch_size, outp
 
         # Execute evaluation
         click.echo("\n🚀 Starting evaluation...")
-        
+
         results = provider_instance.evaluate(config)
 
         # Handle results based on execution mode
@@ -498,7 +524,9 @@ def execute_eval(provider, execution_mode, model, tasks, limit, batch_size, outp
                                 writer.writeheader()
 
                                 # Write each result
-                                for task_name, task_results in serializable_results["results"].items():
+                                for task_name, task_results in serializable_results[
+                                    "results"
+                                ].items():
                                     if isinstance(task_results, dict):
                                         for metric_name, metric_value in task_results.items():
                                             writer.writerow(
@@ -514,7 +542,7 @@ def execute_eval(provider, execution_mode, model, tasks, limit, batch_size, outp
             else:
                 # Print to console in a readable format
                 console = Console()
-                
+
                 if "results" in results and isinstance(results["results"], dict):
                     table = Table(title=f"Evaluation Results for {model}")
                     table.add_column("Task", style="cyan")
@@ -530,22 +558,22 @@ def execute_eval(provider, execution_mode, model, tasks, limit, batch_size, outp
                 else:
                     # Just dump the results
                     console.print(results)
-                    
+
         elif execution_mode == "kubernetes":
             # Handle kubernetes execution results
             console = Console()
-            
+
             console.print("[bold]Kubernetes Execution Results:[/bold]")
             console.print(f"Provider: {results.get('provider', 'unknown')}")
             console.print(f"Status: {results.get('status', 'unknown')}")
-            
+
             if "message" in results:
                 console.print(f"Message: {results['message']}")
-                
+
             # If job was deployed successfully
-            if results.get('status') == 'deployed':
+            if results.get("status") == "deployed":
                 console.print("\n[bold green]✅ Evaluation job deployed successfully![/bold green]")
-                
+
                 if watch:
                     console.print("👀 Watching job progress...")
                     # Here we would add job watching logic
@@ -554,8 +582,8 @@ def execute_eval(provider, execution_mode, model, tasks, limit, batch_size, outp
                     console.print("You can check job status with:")
                     console.print(f"  kubectl get jobs -n {namespace}")
                     console.print(f"  kubectl logs -f -n {namespace} job/<job-name>")
-                    
-            elif results.get('status') == 'failed':
+
+            elif results.get("status") == "failed":
                 console.print("\n[bold red]❌ Failed to deploy evaluation job![/bold red]")
                 if "error" in results:
                     console.print(f"Error: {results['error']}")
@@ -564,6 +592,7 @@ def execute_eval(provider, execution_mode, model, tasks, limit, batch_size, outp
         click.echo(f"Error: {str(e)}")
         if force or "--verbose" in sys.argv:
             import traceback
+
             traceback.print_exc()
 
 
@@ -592,47 +621,54 @@ def run_eval_deprecated(model_id, task, provider, metrics, limit, use_gpu, outpu
     click.echo("⚠️  WARNING: 'trustyai eval run' is deprecated.")
     click.echo("   Please use 'trustyai eval execute --execution-mode local' instead.")
     click.echo("   See 'trustyai eval execute --help' for the new syntax.\n")
-    
+
     # Convert to new execute command format for backward compatibility
     tasks_str = task
     provider_name = provider or "lm-eval-harness"
-    
+
     # Build equivalent execute command
     execute_args = [
-        "--provider", provider_name,
-        "--execution-mode", "local", 
-        "--model", model_id,
-        "--tasks", tasks_str
+        "--provider",
+        provider_name,
+        "--execution-mode",
+        "local",
+        "--model",
+        model_id,
+        "--tasks",
+        tasks_str,
     ]
-    
+
     if limit:
         execute_args.extend(["--limit", str(limit)])
     if output:
         execute_args.extend(["--output", output])
     if format != "json":
         execute_args.extend(["--format", format])
-        
+
     # Call the new execute command
     ctx = click.get_current_context()
-    ctx.invoke(execute_eval, **{
-        'provider': provider_name,
-        'execution_mode': 'local',
-        'model': model_id, 
-        'tasks': tasks_str,
-        'limit': limit,
-        'batch_size': None,
-        'output': output,
-        'format': format,
-        'namespace': None,
-        'cpu': None,
-        'memory': None,
-        'image': None,
-        'dataset': None,
-        'parameters': None,
-        'dry_run': False,
-        'watch': False,
-        'force': False
-    })
+    ctx.invoke(
+        execute_eval,
+        **{
+            "provider": provider_name,
+            "execution_mode": "local",
+            "model": model_id,
+            "tasks": tasks_str,
+            "limit": limit,
+            "batch_size": None,
+            "output": output,
+            "format": format,
+            "namespace": None,
+            "cpu": None,
+            "memory": None,
+            "image": None,
+            "dataset": None,
+            "parameters": None,
+            "dry_run": False,
+            "watch": False,
+            "force": False,
+        },
+    )
 
 
 @eval.command("deploy", deprecated=True, hidden=True)
@@ -663,37 +699,42 @@ def run_eval_deprecated(model_id, task, provider, metrics, limit, use_gpu, outpu
     default="trustyai",
     help="Kubernetes namespace to use (default: trustyai)",
 )
-def deploy_eval_deprecated(model_id, task, provider, limit, use_gpu, output, apply, kubeconfig, context, namespace):
+def deploy_eval_deprecated(
+    model_id, task, provider, limit, use_gpu, output, apply, kubeconfig, context, namespace
+):
     """[DEPRECATED] Use 'trustyai eval execute --execution-mode kubernetes' instead."""
     click.echo("⚠️  WARNING: 'trustyai eval deploy' is deprecated.")
     click.echo("   Please use 'trustyai eval execute --execution-mode kubernetes' instead.")
     click.echo("   See 'trustyai eval execute --help' for the new syntax.\n")
-    
-    # Convert to new execute command format for backward compatibility  
+
+    # Convert to new execute command format for backward compatibility
     tasks_str = task
     provider_name = provider or "lm-eval-harness"
-    
+
     # Call the new execute command
     ctx = click.get_current_context()
-    ctx.invoke(execute_eval, **{
-        'provider': provider_name,
-        'execution_mode': 'kubernetes',
-        'model': model_id,
-        'tasks': tasks_str, 
-        'limit': limit,
-        'batch_size': None,
-        'output': output,
-        'format': 'json',
-        'namespace': namespace,
-        'cpu': None,
-        'memory': None,
-        'image': None,
-        'dataset': None,
-        'parameters': None,
-        'dry_run': False,
-        'watch': False,
-        'force': False
-    })
+    ctx.invoke(
+        execute_eval,
+        **{
+            "provider": provider_name,
+            "execution_mode": "kubernetes",
+            "model": model_id,
+            "tasks": tasks_str,
+            "limit": limit,
+            "batch_size": None,
+            "output": output,
+            "format": "json",
+            "namespace": namespace,
+            "cpu": None,
+            "memory": None,
+            "image": None,
+            "dataset": None,
+            "parameters": None,
+            "dry_run": False,
+            "watch": False,
+            "force": False,
+        },
+    )
 
 
 # Add validators commands
@@ -707,8 +748,10 @@ def _import_validators():
     """Import validators to trigger registration."""
     try:
         from .core.validators import ValidatorRegistry
+
         # Import all validator modules to trigger registration
         from .core.validators import local, kubernetes
+
         return ValidatorRegistry
     except ImportError as e:
         click.echo(f"Error importing validators: {e}")
@@ -741,9 +784,7 @@ def list_validators():
     # Add rows for each validator
     for validator_info in available_validators:
         table.add_row(
-            validator_info["name"],
-            validator_info["description"],
-            validator_info["class"]
+            validator_info["name"], validator_info["description"], validator_info["class"]
         )
 
     # Print the table
@@ -754,7 +795,9 @@ def list_validators():
 @click.argument("validator_name")
 @click.option("--config", "-c", help="JSON configuration for the validator")
 @click.option("--json", "output_json", is_flag=True, help="Output results as JSON")
-@click.option("--implementation", "-i", default="default", help="Implementation name (default: 'default')")
+@click.option(
+    "--implementation", "-i", default="default", help="Implementation name (default: 'default')"
+)
 def run_validator(validator_name, config, output_json, implementation):
     """Run a specific validator.
 
@@ -785,9 +828,7 @@ def run_validator(validator_name, config, output_json, implementation):
     # Create validator instance
     try:
         validator_instance = registry.create_validator(
-            validator_name,
-            implementation,
-            validator_config
+            validator_name, implementation, validator_config
         )
 
         if not validator_instance:
@@ -807,8 +848,8 @@ def run_validator(validator_name, config, output_json, implementation):
                 "result": {
                     "is_valid": result.is_valid,
                     "message": result.message,
-                    "details": result.details
-                }
+                    "details": result.details,
+                },
             }
             click.echo(json.dumps(output_data, indent=2, cls=NumpyJSONEncoder))
         else:
@@ -820,7 +861,9 @@ def run_validator(validator_name, config, output_json, implementation):
             status_symbol = "✅" if result.is_valid else "❌"
 
             console.print(f"\n{status_symbol} Validator: [bold]{validator_name}[/bold]")
-            console.print(f"Status: [bold {status_color}]{'PASS' if result.is_valid else 'FAIL'}[/bold {status_color}]")
+            console.print(
+                f"Status: [bold {status_color}]{'PASS' if result.is_valid else 'FAIL'}[/bold {status_color}]"
+            )
             console.print(f"Message: {result.message}")
 
             # Show details if available
@@ -838,7 +881,7 @@ def run_validator(validator_name, config, output_json, implementation):
                 "validator": validator_name,
                 "implementation": implementation,
                 "config": validator_config,
-                "error": str(e)
+                "error": str(e),
             }
             click.echo(json.dumps(error_data, indent=2))
         else:
