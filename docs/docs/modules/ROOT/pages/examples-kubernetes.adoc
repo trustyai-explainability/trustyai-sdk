@@ -1,0 +1,681 @@
+= Kubernetes Evaluation Examples
+:navtitle: Kubernetes Examples
+
+This section provides comprehensive examples for running model evaluations on Kubernetes using the TrustyAI SDK.
+
+== Basic Examples
+
+=== Simple Evaluation Job
+
+[source,bash]
+----
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode kubernetes \
+  --model "microsoft/DialoGPT-medium" \
+  --tasks "hellaswag" \
+  --namespace trustyai-eval \
+  --cpu 2 \
+  --memory 4Gi \
+  --limit 10
+----
+
+Generated LMEvalJob resource:
+
+[source,yaml]
+----
+apiVersion: trustyai.opendatahub.io/v1alpha1
+kind: LMEvalJob
+metadata:
+  name: evaljob-a1b2c3d4
+  namespace: trustyai-eval
+spec:
+  model: hf
+  modelArgs:
+    - name: pretrained
+      value: microsoft/DialoGPT-medium
+  taskList:
+    taskNames:
+      - hellaswag
+  logSamples: true
+  allowOnline: true
+  allowCodeExecution: true
+  limit: "10"
+  resources:
+    requests:
+      cpu: "1"
+      memory: "2Gi"
+    limits:
+      cpu: "2"
+      memory: "4Gi"
+----
+
+== Advanced Examples
+
+=== Large Language Model Evaluation
+
+[source,bash]
+----
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode kubernetes \
+  --model "meta-llama/Llama-2-70b-chat-hf" \
+  --tasks "mmlu,hellaswag,arc_challenge,truthfulqa" \
+  --namespace trustyai-eval \
+  --cpu 32 \
+  --memory 128Gi \
+  --limit 500 \
+  --image "trustyai/eval-gpu:v1.0.0" \
+  --watch
+----
+
+This example:
+- Uses a large 70B parameter model
+- Evaluates on multiple academic benchmarks
+- Allocates substantial resources (32 CPU, 128GB RAM)
+- Uses a custom GPU-enabled image
+- Monitors progress in real-time
+
+=== Multi-Model Benchmark Suite
+
+Create a script for systematic evaluation:
+
+[source,bash]
+.benchmark-suite.sh
+----
+#!/bin/bash
+
+NAMESPACE="trustyai-eval"
+TASKS="hellaswag,arc_easy,arc_challenge,mmlu"
+LIMIT=100
+
+MODELS=(
+  "microsoft/DialoGPT-medium:2:4Gi"
+  "microsoft/DialoGPT-large:4:8Gi"
+  "meta-llama/Llama-2-7b-chat-hf:8:16Gi"
+  "meta-llama/Llama-2-13b-chat-hf:16:32Gi"
+)
+
+for model_spec in "${MODELS[@]}"; do
+  IFS=':' read -r model cpu memory <<< "$model_spec"
+
+  echo "Evaluating $model..."
+  trustyai eval execute \
+    --provider lm-eval-harness \
+    --execution-mode kubernetes \
+    --model "$model" \
+    --tasks "$TASKS" \
+    --namespace "$NAMESPACE" \
+    --cpu "$cpu" \
+    --memory "$memory" \
+    --limit "$LIMIT" \
+    --output "results-$(basename $model).json"
+
+  echo "Waiting for job completion..."
+  sleep 60
+done
+----
+
+=== GPU-Accelerated Evaluation
+
+[source,bash]
+----
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode kubernetes \
+  --model "meta-llama/Llama-2-7b-chat-hf" \
+  --tasks "mmlu" \
+  --namespace trustyai-eval \
+  --cpu 8 \
+  --memory 32Gi \
+  --limit 1000 \
+  --image "trustyai/eval-gpu:latest" \
+  --parameters '{
+    "device": "cuda",
+    "batch_size": 16,
+    "use_accelerate": true,
+    "gpu_memory_utilization": 0.9
+  }'
+----
+
+Custom resource with GPU requirements:
+
+[source,yaml]
+----
+apiVersion: trustyai.opendatahub.io/v1alpha1
+kind: LMEvalJob
+metadata:
+  name: evaljob-gpu-eval
+  namespace: trustyai-eval
+spec:
+  model: hf
+  modelArgs:
+    - name: pretrained
+      value: meta-llama/Llama-2-7b-chat-hf
+    - name: device
+      value: cuda
+  taskList:
+    taskNames:
+      - mmlu
+  limit: "1000"
+  pod:
+    containers:
+      - name: evaluation
+        image: trustyai/eval-gpu:latest
+        resources:
+          requests:
+            nvidia.com/gpu: 1
+            cpu: "4"
+            memory: "16Gi"
+          limits:
+            nvidia.com/gpu: 1
+            cpu: "8"
+            memory: "32Gi"
+        env:
+          - name: CUDA_VISIBLE_DEVICES
+            value: "0"
+----
+
+== Production Workflows
+
+=== Scheduled Evaluation Pipeline
+
+[source,yaml]
+.scheduled-evaluation.yaml
+----
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: weekly-model-evaluation
+  namespace: trustyai-eval
+spec:
+  schedule: "0 2 * * 0"  # Every Sunday at 2 AM
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: evaluator
+            image: trustyai/sdk:latest
+            command:
+            - /bin/bash
+            - -c
+            - |
+              trustyai eval execute \
+                --provider lm-eval-harness \
+                --execution-mode kubernetes \
+                --model "production/model:latest" \
+                --tasks "hellaswag,arc_easy,mmlu" \
+                --namespace trustyai-eval \
+                --cpu 8 \
+                --memory 16Gi \
+                --limit 500 \
+                --output /shared/weekly-results.json
+            volumeMounts:
+            - name: results-storage
+              mountPath: /shared
+            env:
+            - name: HF_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: huggingface-token
+                  key: token
+          volumes:
+          - name: results-storage
+            persistentVolumeClaim:
+              claimName: evaluation-results
+          restartPolicy: OnFailure
+----
+
+=== Parallel Evaluation Matrix
+
+[source,yaml]
+.parallel-evaluation.yaml
+----
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  name: model-evaluation-matrix
+  namespace: trustyai-eval
+spec:
+  entrypoint: evaluation-matrix
+  templates:
+  - name: evaluation-matrix
+    dag:
+      tasks:
+      - name: eval-small-models
+        template: evaluate-model
+        arguments:
+          parameters:
+          - name: model
+            value: "{{item.model}}"
+          - name: cpu
+            value: "{{item.cpu}}"
+          - name: memory
+            value: "{{item.memory}}"
+        withItems:
+        - {model: "microsoft/DialoGPT-small", cpu: "2", memory: "4Gi"}
+        - {model: "microsoft/DialoGPT-medium", cpu: "4", memory: "8Gi"}
+        - {model: "microsoft/DialoGPT-large", cpu: "8", memory: "16Gi"}
+
+      - name: eval-large-models
+        template: evaluate-model
+        dependencies: [eval-small-models]
+        arguments:
+          parameters:
+          - name: model
+            value: "{{item.model}}"
+          - name: cpu
+            value: "{{item.cpu}}"
+          - name: memory
+            value: "{{item.memory}}"
+        withItems:
+        - {model: "meta-llama/Llama-2-7b-chat-hf", cpu: "16", memory: "32Gi"}
+        - {model: "meta-llama/Llama-2-13b-chat-hf", cpu: "32", memory: "64Gi"}
+
+  - name: evaluate-model
+    inputs:
+      parameters:
+      - name: model
+      - name: cpu
+      - name: memory
+    container:
+      image: trustyai/sdk:latest
+      command: [sh, -c]
+      args:
+      - |
+        trustyai eval execute \
+          --provider lm-eval-harness \
+          --execution-mode kubernetes \
+          --model "{{inputs.parameters.model}}" \
+          --tasks "hellaswag,arc_easy" \
+          --namespace trustyai-eval \
+          --cpu "{{inputs.parameters.cpu}}" \
+          --memory "{{inputs.parameters.memory}}" \
+          --limit 100 \
+          --output "/results/{{inputs.parameters.model}}-results.json"
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+      volumeMounts:
+      - name: results
+        mountPath: /results
+    volumes:
+    - name: results
+      persistentVolumeClaim:
+        claimName: evaluation-results
+----
+
+== Monitoring and Observability
+
+=== Job Status Monitoring
+
+[source,bash]
+----
+# Monitor specific evaluation
+kubectl get lmevaljob evaljob-abc123 -n trustyai-eval -w
+
+# Watch all evaluations
+kubectl get lmevaljobs -n trustyai-eval -w
+
+# Get detailed status
+kubectl describe lmevaljob evaljob-abc123 -n trustyai-eval
+----
+
+=== Log Aggregation
+
+[source,yaml]
+.fluentd-config.yaml
+----
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluentd-eval-config
+  namespace: trustyai-eval
+data:
+  fluent.conf: |
+    <source>
+      @type kubernetes
+      @log_level info
+      path /var/log/containers/*trustyai-eval*.log
+      pos_file /var/log/fluentd-kubernetes.log.pos
+      tag kubernetes.*
+      format json
+      time_format %Y-%m-%dT%H:%M:%S.%NZ
+    </source>
+
+    <filter kubernetes.**>
+      @type kubernetes_metadata
+    </filter>
+
+    <match kubernetes.**>
+      @type elasticsearch
+      host elasticsearch.logging.svc.cluster.local
+      port 9200
+      index_name trustyai-evaluations
+      type_name evaluation_logs
+    </match>
+----
+
+=== Metrics Collection
+
+[source,yaml]
+.prometheus-servicemonitor.yaml
+----
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: trustyai-evaluations
+  namespace: trustyai-eval
+spec:
+  selector:
+    matchLabels:
+      app: trustyai-evaluation
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics
+----
+
+== Resource Management
+
+=== Resource Quotas
+
+[source,yaml]
+.resource-quota.yaml
+----
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: trustyai-eval-quota
+  namespace: trustyai-eval
+spec:
+  hard:
+    requests.cpu: "50"
+    requests.memory: 100Gi
+    limits.cpu: "100"
+    limits.memory: 200Gi
+    requests.nvidia.com/gpu: "4"
+    limits.nvidia.com/gpu: "8"
+    persistentvolumeclaims: "10"
+    count/lmevaljobs.trustyai.opendatahub.io: "20"
+----
+
+=== Priority Classes
+
+[source,yaml]
+.priority-classes.yaml
+----
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: high-priority-eval
+value: 1000
+globalDefault: false
+description: "High priority for critical evaluations"
+---
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: low-priority-eval
+value: 100
+globalDefault: false
+description: "Low priority for batch evaluations"
+----
+
+Usage in evaluation jobs:
+
+[source,bash]
+----
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode kubernetes \
+  --model "microsoft/DialoGPT-medium" \
+  --tasks "hellaswag" \
+  --namespace trustyai-eval \
+  --cpu 2 \
+  --memory 4Gi \
+  --parameters '{"priority_class": "high-priority-eval"}'
+----
+
+== Scaling Strategies
+
+=== Horizontal Pod Autoscaling
+
+[source,yaml]
+.hpa-evaluation.yaml
+----
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: evaluation-hpa
+  namespace: trustyai-eval
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: evaluation-worker
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+----
+
+=== Cluster Autoscaling
+
+Configure cluster autoscaler for evaluation workloads:
+
+[source,yaml]
+.cluster-autoscaler-config.yaml
+----
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cluster-autoscaler-status
+  namespace: kube-system
+data:
+  nodes.max: "100"
+  cores.max: "1000"
+  memory.max: "1000Gi"
+  trustyai-eval.nodes.max: "20"  # Dedicated node pool
+----
+
+== Security and Compliance
+
+=== Pod Security Standards
+
+[source,yaml]
+.pod-security-policy.yaml
+----
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: trustyai-eval
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+----
+
+=== Network Policies
+
+[source,yaml]
+.network-policy.yaml
+----
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: trustyai-eval-netpol
+  namespace: trustyai-eval
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+  egress:
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443  # HTTPS for model downloads
+    - protocol: TCP
+      port: 53   # DNS
+    - protocol: UDP
+      port: 53   # DNS
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: trustyai-operator-system
+    ports:
+    - protocol: TCP
+      port: 8443  # Operator webhook
+----
+
+=== Secrets Management
+
+[source,yaml]
+.secrets.yaml
+----
+apiVersion: v1
+kind: Secret
+metadata:
+  name: model-access-tokens
+  namespace: trustyai-eval
+type: Opaque
+data:
+  hf-token: <base64-encoded-huggingface-token>
+  openai-key: <base64-encoded-openai-key>
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: registry-credentials
+  namespace: trustyai-eval
+type: kubernetes.io/dockerconfigjson
+data:
+  .dockerconfigjson: <base64-encoded-docker-config>
+----
+
+== Troubleshooting
+
+=== Common Issues and Solutions
+
+**Pod Stuck in Pending**::
+[source,bash]
+----
+# Check node resources
+kubectl describe nodes
+
+# Check pod events
+kubectl describe pod evaljob-abc123 -n trustyai-eval
+
+# Check resource quotas
+kubectl describe quota -n trustyai-eval
+----
+
+**Out of Memory Errors**::
+[source,bash]
+----
+# Check pod memory usage
+kubectl top pods -n trustyai-eval
+
+# Review pod resource limits
+kubectl get pod evaljob-abc123 -n trustyai-eval -o yaml | grep -A 10 resources
+
+# Increase memory allocation
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode kubernetes \
+  --model "microsoft/DialoGPT-medium" \
+  --tasks "hellaswag" \
+  --namespace trustyai-eval \
+  --cpu 4 \
+  --memory 16Gi  # Increased from 8Gi
+----
+
+**Model Download Failures**::
+[source,bash]
+----
+# Check network connectivity
+kubectl run debug --rm -i --tty --image=curlimages/curl -- sh
+curl -I https://huggingface.co
+
+# Verify authentication
+kubectl get secret model-access-tokens -n trustyai-eval -o yaml
+
+# Use model cache volume
+kubectl apply -f - <<EOF
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: model-cache
+  namespace: trustyai-eval
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 100Gi
+EOF
+----
+
+=== Debug Mode
+
+[source,bash]
+----
+# Enable debug logging
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode kubernetes \
+  --model "microsoft/DialoGPT-medium" \
+  --tasks "hellaswag" \
+  --namespace trustyai-eval \
+  --cpu 2 \
+  --memory 4Gi \
+  --parameters '{"debug": true, "log_level": "DEBUG"}'
+
+# Access debugging container
+kubectl run debug-pod --rm -i --tty \
+  --image=trustyai/sdk:debug \
+  --namespace=trustyai-eval -- /bin/bash
+----
+
+== Best Practices
+
+=== Resource Planning
+
+1. **Profile Models**: Test resource requirements with small evaluations first
+2. **Use Node Selectors**: Target appropriate hardware for different model sizes
+3. **Implement Timeouts**: Set reasonable job timeouts to prevent runaway processes
+4. **Monitor Costs**: Track resource usage for cost optimization
+
+=== Operational Excellence
+
+1. **Use Namespaces**: Separate development, staging, and production evaluations
+2. **Implement RBAC**: Restrict access to evaluation resources
+3. **Backup Results**: Store evaluation results in persistent storage
+4. **Version Control**: Tag evaluation configurations for reproducibility
+
+=== Performance Optimization
+
+1. **Batch Optimization**: Tune batch sizes for memory efficiency
+2. **Model Caching**: Use shared volumes for model caching
+3. **Parallel Execution**: Split large evaluations across multiple jobs
+4. **GPU Utilization**: Optimize GPU memory usage and scheduling
+
+== Next Steps
+
+* Explore xref:api-kubernetes.adoc[Kubernetes API Reference]
+* Learn about xref:providers.adoc[Evaluation Providers]
+* Review xref:development.adoc[Development Guidelines]

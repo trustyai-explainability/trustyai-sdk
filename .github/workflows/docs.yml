@@ -1,0 +1,95 @@
+name: Build and Deploy Documentation
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'docs/**'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'docs/**'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install Antora
+        run: |
+          npm install -g @antora/cli@3.1 @antora/site-generator@3.1
+
+      - name: Create Antora playbook
+        run: |
+          cat > antora-playbook.yml << EOF
+          site:
+            title: TrustyAI SDK Documentation
+            url: https://trustyai-explainability.github.io/trustyai-sdk
+            start_page: trustyai-sdk::index.adoc
+
+          content:
+            sources:
+              - url: .
+                branches: HEAD
+                start_path: docs
+
+          ui:
+            bundle:
+              url: https://gitlab.com/antora/antora-ui-default/-/jobs/artifacts/HEAD/raw/build/ui-bundle.zip?job=bundle-stable
+              snapshot: true
+
+          output:
+            dir: ./dist
+
+          asciidoc:
+            attributes:
+              source-highlighter: highlight.js
+              page-pagination: true
+          EOF
+
+      - name: Generate documentation site
+        run: antora antora-playbook.yml
+
+      - name: Setup Pages
+        if: github.ref == 'refs/heads/main'
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist
+
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

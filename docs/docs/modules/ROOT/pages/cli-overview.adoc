@@ -1,0 +1,310 @@
+= CLI Overview
+:navtitle: CLI Overview
+
+The TrustyAI CLI provides a unified command-line interface for model evaluation, validation, and management operations.
+
+== Basic Usage
+
+[source,bash]
+----
+trustyai [GLOBAL_OPTIONS] COMMAND [COMMAND_OPTIONS]
+----
+
+== Global Options
+
+`--version`:: Display version information
+`--help`:: Show help message
+
+== Command Structure
+
+The CLI is organized into logical command groups:
+
+=== Evaluation Commands
+
+[source,bash]
+----
+trustyai eval SUBCOMMAND [OPTIONS]
+----
+
+* `execute` - Run model evaluations
+* `list-providers` - List available evaluation providers
+* `list-datasets` - List datasets for a provider
+* `list-metrics` - List metrics for a provider
+
+=== Model Commands
+
+[source,bash]
+----
+trustyai model SUBCOMMAND [OPTIONS]
+----
+
+* `list` - List available models
+* `explain` - Generate model explanations
+
+=== Validator Commands
+
+[source,bash]
+----
+trustyai validators SUBCOMMAND [OPTIONS]
+----
+
+* `list` - List available validators
+* `run` - Execute specific validators
+
+=== Information Commands
+
+[source,bash]
+----
+trustyai info
+----
+
+Display system and configuration information.
+
+== Quick Examples
+
+=== Get Help
+
+[source,bash]
+----
+# General help
+trustyai --help
+
+# Command-specific help
+trustyai eval --help
+trustyai eval execute --help
+----
+
+=== List Available Resources
+
+[source,bash]
+----
+# List evaluation providers
+trustyai eval list-providers
+
+# List validators
+trustyai validators list
+
+# List models
+trustyai model list
+----
+
+=== Run Quick Evaluation
+
+[source,bash]
+----
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "microsoft/DialoGPT-medium" \
+  --tasks "hellaswag" \
+  --limit 5
+----
+
+== Configuration
+
+=== Environment Variables
+
+Common environment variables:
+
+[source,bash]
+----
+# Authentication
+export HF_TOKEN=your_huggingface_token
+export OPENAI_API_KEY=your_openai_key
+
+# Cache directories
+export HF_HOME=/path/to/huggingface/cache
+export TRUSTYAI_CACHE_DIR=/path/to/trustyai/cache
+
+# Kubernetes
+export KUBECONFIG=/path/to/kubeconfig
+export TRUSTYAI_DEFAULT_NAMESPACE=trustyai-eval
+----
+
+=== Configuration Files
+
+The CLI supports configuration files for common settings:
+
+[source,yaml]
+.trustyai-config.yaml
+----
+default_provider: lm-eval-harness
+default_execution_mode: local
+default_namespace: trustyai-eval
+cache_dir: /path/to/cache
+
+providers:
+  lm-eval-harness:
+    batch_size: 8
+    use_cache: true
+  ragas:
+    temperature: 0.7
+----
+
+== Output Formats
+
+The CLI supports multiple output formats:
+
+=== JSON (Default)
+
+[source,bash]
+----
+trustyai eval execute ... --format json
+----
+
+=== CSV
+
+[source,bash]
+----
+trustyai eval execute ... --format csv
+----
+
+=== Table (Console)
+
+Default display format for terminal output.
+
+== Error Handling
+
+The CLI provides clear error messages and exit codes:
+
+=== Exit Codes
+
+* `0` - Success
+* `1` - General error
+* `2` - Configuration error
+* `3` - Validation error
+* `4` - Execution error
+
+=== Common Error Messages
+
+**Provider Not Found**:
+```
+Error: Evaluation provider 'invalid-provider' not found.
+Use 'trustyai eval list-providers' to see available providers.
+```
+
+**Missing Dependencies**:
+```
+Try installing optional dependencies: pip install trustyai[eval]
+```
+
+**Kubernetes Configuration**:
+```
+Error: --namespace is required for kubernetes execution mode
+```
+
+== Advanced Usage
+
+=== Batch Operations
+
+[source,bash]
+----
+# Multiple models
+for model in "microsoft/DialoGPT-small" "microsoft/DialoGPT-medium"; do
+  trustyai eval execute \
+    --provider lm-eval-harness \
+    --execution-mode local \
+    --model "$model" \
+    --tasks "hellaswag" \
+    --output "results-$(basename $model).json"
+done
+
+# Multiple tasks
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "microsoft/DialoGPT-medium" \
+  --tasks "hellaswag,arc_easy,arc_challenge" \
+  --limit 50
+----
+
+=== Piping and Scripting
+
+[source,bash]
+----
+# Get provider list for scripting
+providers=$(trustyai eval list-providers --output json | jq -r '.[].name')
+
+# Check evaluation status
+if trustyai eval execute ... --dry-run; then
+  echo "Configuration valid"
+  trustyai eval execute ...
+else
+  echo "Configuration invalid"
+fi
+----
+
+== Shell Integration
+
+=== Bash Completion
+
+Enable command completion:
+
+[source,bash]
+----
+# Add to ~/.bashrc
+eval "$(trustyai --completion bash)"
+----
+
+=== Zsh Completion
+
+[source,bash]
+----
+# Add to ~/.zshrc
+eval "$(trustyai --completion zsh)"
+----
+
+== Debugging
+
+=== Verbose Output
+
+[source,bash]
+----
+# Enable debug logging
+export TRUSTYAI_LOG_LEVEL=DEBUG
+
+# Force execution despite warnings
+trustyai eval execute ... --force
+
+# Validate configuration only
+trustyai eval execute ... --dry-run
+----
+
+=== Common Debugging Commands
+
+[source,bash]
+----
+# Check system information
+trustyai info
+
+# Verify provider installation
+trustyai eval list-providers
+
+# Test model access
+python -c "from transformers import AutoTokenizer; print('Model accessible')"
+
+# Check Kubernetes connectivity
+kubectl cluster-info
+----
+
+== Best Practices
+
+=== Development Workflow
+
+1. **Start with validation**: Use `--dry-run` first
+2. **Use small limits**: Test with `--limit 5` before full runs
+3. **Save outputs**: Always use `--output` for reproducibility
+4. **Check providers**: Use `list-providers` to verify availability
+
+=== Production Usage
+
+1. **Set environment variables**: Configure authentication and paths
+2. **Use configuration files**: Standardize common settings
+3. **Monitor resources**: Check system resources during evaluations
+4. **Implement error handling**: Use exit codes in scripts
+
+== Next Steps
+
+* Explore xref:cli-eval.adoc[Evaluation Commands] in detail
+* Learn about xref:examples-local.adoc[Local Examples]
+* Review xref:examples-kubernetes.adoc[Kubernetes Examples]

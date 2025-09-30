@@ -1,0 +1,347 @@
+= Getting Started
+:navtitle: Getting Started
+
+This guide walks you through your first model test using the TrustyAI SDK. You'll learn how to run tests on your computer and on Kubernetes.
+
+== Prerequisites
+
+Before starting, ensure you have:
+
+* Python 3.9+ installed
+* TrustyAI SDK installed: `pip install trustyai[eval]`
+* For Kubernetes: kubectl configured and TrustyAI Operator installed
+
+== Your First Test
+
+=== Local Test
+
+Start with a simple test on your computer:
+
+[source,bash]
+----
+# List available providers
+trustyai eval list-providers
+
+# Run a small evaluation locally
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "microsoft/DialoGPT-medium" \
+  --tasks "hellaswag" \
+  --limit 5
+----
+
+This command will:
+
+. Download the DialoGPT model (if not cached)
+. Run the HellaSwag task on 5 examples
+. Display results in your terminal
+
+Expected output:
+[source,json]
+----
+{
+  "provider": "lm-eval-harness",
+  "model": "microsoft/DialoGPT-medium",
+  "tasks": ["hellaswag"],
+  "results": {
+    "hellaswag": {
+      "acc": 0.6000,
+      "acc_stderr": 0.2191,
+      "acc_norm": 0.4000,
+      "acc_norm_stderr": 0.2191
+    }
+  }
+}
+----
+
+=== Kubernetes Test
+
+Scale up with Kubernetes:
+
+[source,bash]
+----
+# Validate your cluster setup
+trustyai validators list
+
+# Run evaluation on Kubernetes
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode kubernetes \
+  --model "microsoft/DialoGPT-medium" \
+  --tasks "hellaswag,arc_easy" \
+  --namespace trustyai-eval \
+  --cpu 2 \
+  --memory 4Gi \
+  --limit 10 \
+  --dry-run
+----
+
+The `--dry-run` flag validates configuration without executing. Remove it to run the actual evaluation.
+
+== Understanding the Results
+
+=== Metrics Explanation
+
+**acc (Accuracy)**:: Percentage of correct predictions
+**acc_stderr**:: Standard error of the accuracy measurement
+**acc_norm (Normalized Accuracy)**:: Accuracy normalized by task-specific methods
+
+=== Result Interpretation
+
+For HellaSwag (commonsense reasoning):
+* **Good performance**: acc > 0.6
+* **Random baseline**: acc ≈ 0.25 (4 choices)
+* **Human performance**: acc ≈ 0.95
+
+== Working with Different Models
+
+=== Hugging Face Models
+
+[source,bash]
+----
+# Small model for testing
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "microsoft/DialoGPT-small" \
+  --tasks "hellaswag" \
+  --limit 10
+
+# Larger model (requires more resources)
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode kubernetes \
+  --model "meta-llama/Llama-2-7b-chat-hf" \
+  --tasks "mmlu" \
+  --namespace trustyai-eval \
+  --cpu 4 \
+  --memory 16Gi \
+  --limit 50
+----
+
+=== OpenAI Models
+
+Set your API key and use OpenAI models:
+
+[source,bash]
+----
+export OPENAI_API_KEY=your-api-key
+
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "openai/gpt-3.5-turbo" \
+  --tasks "hellaswag" \
+  --limit 10
+----
+
+== Common Evaluation Tasks
+
+=== Academic Benchmarks
+
+[source,bash]
+----
+# Commonsense reasoning
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "microsoft/DialoGPT-medium" \
+  --tasks "hellaswag,arc_easy,arc_challenge" \
+  --limit 20
+
+# Knowledge and reasoning
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode kubernetes \
+  --model "meta-llama/Llama-2-7b-chat-hf" \
+  --tasks "mmlu,truthfulqa" \
+  --namespace trustyai-eval \
+  --cpu 4 \
+  --memory 8Gi \
+  --limit 100
+----
+
+=== RAG Evaluation with RAGAS
+
+[source,bash]
+----
+# Create sample dataset
+cat > rag_data.json << EOF
+[
+  {
+    "question": "What is the capital of France?",
+    "answer": "The capital of France is Paris.",
+    "contexts": ["Paris is the capital and most populous city of France."]
+  }
+]
+EOF
+
+# Evaluate RAG system
+trustyai eval execute \
+  --provider ragas \
+  --execution-mode local \
+  --model "openai/gpt-4" \
+  --tasks "faithfulness,answer_relevancy" \
+  --dataset rag_data.json
+----
+
+== Saving and Analyzing Results
+
+=== Save Results to File
+
+[source,bash]
+----
+# JSON format (default)
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "microsoft/DialoGPT-medium" \
+  --tasks "hellaswag,arc_easy" \
+  --limit 20 \
+  --output results.json
+
+# CSV format for spreadsheets
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "microsoft/DialoGPT-medium" \
+  --tasks "hellaswag,arc_easy" \
+  --limit 20 \
+  --output results.csv \
+  --format csv
+----
+
+=== Programmatic Analysis
+
+[source,python]
+----
+import json
+import pandas as pd
+
+# Load and analyze JSON results
+with open('results.json', 'r') as f:
+    results = json.load(f)
+
+# Extract metrics
+for task, metrics in results['results'].items():
+    print(f"{task}: {metrics['acc']:.3f} ± {metrics['acc_stderr']:.3f}")
+
+# Load CSV for pandas analysis
+df = pd.read_csv('results.csv')
+print(df.groupby('task')['value'].describe())
+----
+
+== Monitoring Kubernetes Jobs
+
+=== Check Job Status
+
+[source,bash]
+----
+# List evaluation jobs
+kubectl get lmevaljobs -n trustyai-eval
+
+# Get detailed status
+kubectl describe lmevaljob evaljob-abc123 -n trustyai-eval
+
+# Watch logs
+kubectl logs -f job/evaljob-abc123 -n trustyai-eval
+----
+
+=== Real-time Monitoring
+
+[source,bash]
+----
+# Use --watch flag for automatic monitoring
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode kubernetes \
+  --model "microsoft/DialoGPT-medium" \
+  --tasks "hellaswag" \
+  --namespace trustyai-eval \
+  --cpu 2 \
+  --memory 4Gi \
+  --limit 50 \
+  --watch
+----
+
+== Troubleshooting
+
+=== Common Issues
+
+**Model Download Failures**::
+[source,bash]
+----
+# Check Hugging Face cache
+export HF_HOME=/path/to/large/storage
+echo $HF_HOME
+
+# Test model access
+python -c "from transformers import AutoTokenizer; AutoTokenizer.from_pretrained('microsoft/DialoGPT-medium')"
+----
+
+**Kubernetes Connection Issues**::
+[source,bash]
+----
+# Verify cluster connection
+kubectl cluster-info
+
+# Check TrustyAI Operator
+kubectl get pods -n trustyai-operator-system
+
+# Verify namespace exists
+kubectl get namespace trustyai-eval
+----
+
+**Memory Issues**::
+[source,bash]
+----
+# Reduce batch size or limit
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "microsoft/DialoGPT-medium" \
+  --tasks "hellaswag" \
+  --limit 5 \
+  --batch-size 1
+----
+
+=== Getting Help
+
+[source,bash]
+----
+# CLI help
+trustyai --help
+trustyai eval --help
+trustyai eval execute --help
+
+# List available options
+trustyai eval list-providers
+trustyai eval list-datasets --provider lm-eval-harness
+trustyai validators list
+----
+
+== Best Practices
+
+=== Development Workflow
+
+1. **Start Small**: Use `--limit 5` for quick tests
+2. **Validate First**: Use `--dry-run` for Kubernetes deployments
+3. **Monitor Resources**: Check CPU/memory usage during evaluations
+4. **Save Results**: Always use `--output` for reproducibility
+
+=== Production Considerations
+
+1. **Resource Planning**: Profile model memory requirements
+2. **Batch Optimization**: Tune batch sizes for efficiency
+3. **Error Handling**: Implement retry logic for large evaluations
+4. **Result Storage**: Use persistent storage for Kubernetes results
+
+== Next Steps
+
+Now that you've completed your first evaluation:
+
+* Explore xref:providers.adoc[Different Evaluation Providers]
+* Learn about xref:kubernetes.adoc[Advanced Kubernetes Features]
+* Review xref:examples-local.adoc[More Local Examples]
+* Set up xref:examples-kubernetes.adoc[Production Kubernetes Workflows]

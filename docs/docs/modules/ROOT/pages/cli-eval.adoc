@@ -1,0 +1,392 @@
+= Evaluation Commands
+:navtitle: Evaluation Commands
+
+This guide covers the TrustyAI CLI commands for running model tests in both local and Kubernetes setups.
+
+== Overview
+
+The test commands give you one way to run model tests across different testing tools and setups.
+
+== Basic Syntax
+
+[source,bash]
+----
+trustyai eval <subcommand> [options]
+----
+
+== Available Subcommands
+
+=== execute
+
+Run model tests with a specific testing tool and setup.
+
+[source,bash]
+----
+trustyai eval execute \
+  --provider <provider_name> \
+  --execution-mode <local|kubernetes> \
+  --model <model_identifier> \
+  --tasks <task_list> \
+  [additional_options]
+----
+
+==== Required Options
+
+`--provider, -p`:: Name of the evaluation provider (e.g., `lm-eval-harness`, `ragas`)
+`--model`:: Model identifier or path (e.g., `microsoft/DialoGPT-medium`, `openai/gpt-4`)
+`--tasks`:: Comma-separated list of evaluation tasks (e.g., `hellaswag,arc_easy`)
+
+==== Execution Mode Options
+
+`--execution-mode`:: Execution environment (`local` or `kubernetes`, default: `local`)
+
+==== Local Execution Options
+
+`--limit, -l`:: Limit number of examples to evaluate (integer)
+`--batch-size`:: Batch size for evaluation (integer)
+`--output, -o`:: Path to output results file
+`--format, -f`:: Output format (`json` or `csv`, default: `json`)
+
+==== Kubernetes Execution Options
+
+`--namespace, -n`:: Kubernetes namespace for evaluation job
+`--cpu`:: CPU limit for Kubernetes execution (e.g., `4`, `2000m`)
+`--memory`:: Memory limit for Kubernetes execution (e.g., `8Gi`, `4096Mi`)
+`--image`:: Container image for Kubernetes execution
+`--watch`:: Watch Kubernetes job progress in real-time
+`--dry-run`:: Validate configuration without executing
+
+==== Provider-Specific Options
+
+`--dataset`:: Path to external dataset (for providers like RAGAS)
+`--parameters`:: Additional provider-specific parameters as JSON string
+
+==== General Options
+
+`--force`:: Force execution despite validation warnings
+
+=== list-providers
+
+List all available evaluation providers.
+
+[source,bash]
+----
+trustyai eval list-providers
+----
+
+Output includes provider names, supported execution modes, and descriptions.
+
+=== list-datasets
+
+List available datasets for a specific provider.
+
+[source,bash]
+----
+trustyai eval list-datasets --provider lm-eval-harness
+----
+
+=== list-metrics
+
+List available metrics for a specific provider.
+
+[source,bash]
+----
+trustyai eval list-metrics --provider ragas
+----
+
+== Examples
+
+=== Local Evaluation
+
+==== Basic Local Evaluation
+
+[source,bash]
+----
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "microsoft/DialoGPT-medium" \
+  --tasks "hellaswag,arc_easy" \
+  --limit 10
+----
+
+==== Local Evaluation with Custom Output
+
+[source,bash]
+----
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "meta-llama/Llama-2-7b-chat-hf" \
+  --tasks "mmlu,hellaswag" \
+  --limit 50 \
+  --batch-size 8 \
+  --output results.json \
+  --format json
+----
+
+==== RAGAS Evaluation with External Dataset
+
+[source,bash]
+----
+trustyai eval execute \
+  --provider ragas \
+  --execution-mode local \
+  --model "openai/gpt-4" \
+  --tasks "faithfulness,answer_relevancy" \
+  --dataset "data/rag_evaluation.json" \
+  --parameters '{"temperature": 0.7}'
+----
+
+=== Kubernetes Evaluation
+
+==== Basic Kubernetes Evaluation
+
+[source,bash]
+----
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode kubernetes \
+  --model "microsoft/DialoGPT-medium" \
+  --tasks "hellaswag,arc_easy" \
+  --namespace trustyai-eval \
+  --cpu 4 \
+  --memory 8Gi \
+  --limit 50
+----
+
+==== Large Model Evaluation
+
+[source,bash]
+----
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode kubernetes \
+  --model "meta-llama/Llama-2-70b-chat-hf" \
+  --tasks "mmlu,hellaswag,arc_challenge" \
+  --namespace trustyai-eval \
+  --cpu 16 \
+  --memory 64Gi \
+  --limit 100 \
+  --image "trustyai/eval-gpu:latest" \
+  --watch
+----
+
+==== Dry Run Validation
+
+[source,bash]
+----
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode kubernetes \
+  --model "microsoft/DialoGPT-medium" \
+  --tasks "hellaswag,arc_easy" \
+  --namespace trustyai-eval \
+  --cpu 4 \
+  --memory 8Gi \
+  --limit 50 \
+  --dry-run
+----
+
+== Configuration
+
+=== Environment Variables
+
+Configure common settings via environment variables:
+
+[source,bash]
+----
+# Default namespace for Kubernetes evaluations
+export TRUSTYAI_DEFAULT_NAMESPACE=trustyai-eval
+
+# Default resource limits
+export TRUSTYAI_DEFAULT_CPU=4
+export TRUSTYAI_DEFAULT_MEMORY=8Gi
+
+# Hugging Face cache directory
+export HF_HOME=/path/to/cache
+
+# OpenAI API key for OpenAI models
+export OPENAI_API_KEY=your-api-key
+----
+
+=== Configuration Files
+
+Create evaluation configuration files for reusable setups:
+
+[source,yaml]
+.eval-config.yaml
+----
+provider: lm-eval-harness
+execution_mode: kubernetes
+namespace: trustyai-eval
+cpu: 4
+memory: 8Gi
+models:
+  - microsoft/DialoGPT-medium
+  - meta-llama/Llama-2-7b-chat-hf
+tasks:
+  - hellaswag
+  - arc_easy
+  - mmlu
+limit: 50
+----
+
+[source,bash]
+----
+trustyai eval execute --config eval-config.yaml --model "microsoft/DialoGPT-medium"
+----
+
+== Output Formats
+
+=== JSON Output
+
+Default structured output format:
+
+[source,json]
+----
+{
+  "provider": "lm-eval-harness",
+  "model": "microsoft/DialoGPT-medium",
+  "tasks": ["hellaswag", "arc_easy"],
+  "results": {
+    "hellaswag": {
+      "acc": 0.4823,
+      "acc_stderr": 0.0158,
+      "acc_norm": 0.4756,
+      "acc_norm_stderr": 0.0158
+    },
+    "arc_easy": {
+      "acc": 0.6789,
+      "acc_stderr": 0.0096,
+      "acc_norm": 0.6534,
+      "acc_norm_stderr": 0.0098
+    }
+  },
+  "metadata": {
+    "timestamp": "2024-01-15T10:30:45Z",
+    "duration": 120.5,
+    "samples_evaluated": 50
+  }
+}
+----
+
+=== CSV Output
+
+Tabular format for spreadsheet analysis:
+
+[source,csv]
+----
+task,metric,value,stderr
+hellaswag,acc,0.4823,0.0158
+hellaswag,acc_norm,0.4756,0.0158
+arc_easy,acc,0.6789,0.0096
+arc_easy,acc_norm,0.6534,0.0098
+----
+
+=== Kubernetes Job Status
+
+For Kubernetes executions, output includes deployment information:
+
+[source,json]
+----
+{
+  "status": "deployed",
+  "message": "LMEvalJob successfully deployed to Kubernetes cluster\nCreated LMEvalJob: evaljob-abc123\nNamespace: trustyai-eval",
+  "provider": "lm-eval-kubernetes",
+  "deployment_mode": "kubernetes",
+  "job_name": "evaljob-abc123",
+  "namespace": "trustyai-eval",
+  "submitted_resource": {
+    "name": "evaljob-abc123",
+    "namespace": "trustyai-eval",
+    "kind": "LMEvalJob"
+  }
+}
+----
+
+== Error Handling
+
+=== Common Error Messages
+
+**Provider Not Found**::
+```
+Error: Evaluation provider 'invalid-provider' not found.
+Try installing optional dependencies: pip install trustyai[eval]
+Use 'trustyai eval list-providers' to see available providers.
+```
+
+**Kubernetes Namespace Required**::
+```
+Error: --namespace is required for kubernetes execution mode
+```
+
+**Validation Failed**::
+```
+❌ Validation failed. Please fix the issues above before proceeding.
+```
+
+**Resource Deployment Failed**::
+```
+❌ Failed to deploy evaluation job!
+Error: The deployment failed. Make sure the TrustyAI Operator is installed in your cluster.
+```
+
+=== Debugging
+
+Enable verbose output for troubleshooting:
+
+[source,bash]
+----
+# Add debug information
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode kubernetes \
+  --model "microsoft/DialoGPT-medium" \
+  --tasks "hellaswag" \
+  --namespace trustyai-eval \
+  --force \
+  --verbose
+----
+
+Check evaluation logs:
+
+[source,bash]
+----
+# For Kubernetes evaluations
+kubectl logs -f job/evaljob-abc123 -n trustyai-eval
+
+# For local evaluations, logs are printed to console
+----
+
+== Best Practices
+
+=== Resource Management
+
+* Use `--limit` to control evaluation scope during development
+* Set appropriate `--cpu` and `--memory` limits for Kubernetes evaluations
+* Use `--dry-run` to validate configurations before execution
+
+=== Task Selection
+
+* Start with smaller task sets (`--tasks "hellaswag"`) before full benchmarks
+* Group related tasks for efficient evaluation
+* Check task availability with `trustyai eval list-datasets`
+
+=== Output Management
+
+* Use `--output` to save results for later analysis
+* Choose appropriate `--format` based on downstream tools
+* Include metadata in output files for reproducibility
+
+=== Kubernetes Operations
+
+* Use `--watch` for real-time progress monitoring
+* Set reasonable timeouts for long-running evaluations
+* Monitor cluster resources during large evaluations
+
+== Next Steps
+
+* Explore xref:examples-local.adoc[Local Evaluation Examples]
+* Learn about xref:examples-kubernetes.adoc[Kubernetes Evaluation Examples]
+* Review xref:providers.adoc[Available Evaluation Providers]

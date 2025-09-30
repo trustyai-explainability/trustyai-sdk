@@ -1,0 +1,93 @@
+= Core API
+:navtitle: Core API
+
+The TrustyAI SDK provides a Python API for building custom testing workflows and integrating with existing systems.
+
+== Basic Usage
+
+=== Importing the SDK
+
+[source,python]
+----
+from trustyai.providers.eval.lm_eval import LMEvalProvider
+from trustyai.core.eval import EvaluationProviderConfig, ExecutionMode
+----
+
+=== Creating a Test Configuration
+
+[source,python]
+----
+config = EvaluationProviderConfig(
+    evaluation_name="my-test",
+    model="microsoft/DialoGPT-medium",
+    tasks=["hellaswag", "arc_easy"],
+    deployment_mode=ExecutionMode.LOCAL,
+    limit=10
+)
+----
+
+=== Running Tests
+
+[source,python]
+----
+import asyncio
+
+async def run_test():
+    provider = LMEvalProvider()
+    results = await provider.evaluate(config)
+    return results
+
+# Run the test
+results = asyncio.run(run_test())
+print(results)
+----
+
+== Provider Classes
+
+=== LMEvalProvider
+
+For running LM Evaluation Harness tests locally.
+
+[source,python]
+----
+from trustyai.providers.eval.lm_eval import LMEvalProvider
+
+provider = LMEvalProvider()
+# Configure and run tests
+----
+
+=== KubernetesLMEvalProvider
+
+For running tests on Kubernetes.
+
+[source,python]
+----
+from trustyai.providers.eval.lm_eval_kubernetes import KubernetesLMEvalProvider
+
+provider = KubernetesLMEvalProvider()
+# Configure and run tests on Kubernetes
+----
+
+== Configuration Classes
+
+=== EvaluationProviderConfig
+
+Main configuration class for all tests.
+
+[source,python]
+----
+config = EvaluationProviderConfig(
+    evaluation_name="test-name",    # Name for this test run
+    model="model-identifier",       # Model to test
+    tasks=["task1", "task2"],      # List of tasks to run
+    deployment_mode=ExecutionMode.LOCAL,  # LOCAL or KUBERNETES
+    limit=50,                      # Number of examples to test
+    batch_size=8                   # Batch size for processing
+)
+----
+
+== Next Steps
+
+* See xref:examples-local.adoc[Local Examples] for more code samples
+* Check xref:examples-kubernetes.adoc[Kubernetes Examples] for cluster usage
+* Review xref:providers.adoc[Testing Tools] for available providers

@@ -1,0 +1,62 @@
+= TrustyAI SDK
+:navtitle: Overview
+
+The TrustyAI SDK is a Python toolkit for testing machine learning models. You can run tests locally on your computer or on Kubernetes clusters.
+
+== Key Features
+
+* **Multiple Testing Tools**: Works with LM Evaluation Harness, RAGAS, and other testing tools
+* **Run Anywhere**: Test models on your computer or scale up using Kubernetes
+* **Works with TrustyAI**: Built to work with TrustyAI Operator and OpenDataHub
+* **Easy to Use**: Command line tools and Python code for different workflows
+* **Safety Checks**: Checks your setup before running tests
+
+== Quick Start
+
+[source,bash]
+----
+# Install the SDK
+pip install trustyai[eval]
+
+# Run a local evaluation
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "microsoft/DialoGPT-medium" \
+  --tasks "hellaswag,arc_easy" \
+  --limit 10
+
+# Deploy to Kubernetes
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode kubernetes \
+  --model "microsoft/DialoGPT-medium" \
+  --tasks "hellaswag,arc_easy" \
+  --namespace trustyai-eval \
+  --cpu 4 \
+  --memory 8Gi \
+  --limit 50
+----
+
+== How It Works
+
+The TrustyAI SDK has several main parts:
+
+Provider System:: Different testing tools that work with various testing frameworks
+Execution Modes:: Run tests on your computer or spread them across Kubernetes
+Validation Framework:: Checks your setup before running tests to avoid problems
+Kubernetes Integration:: Works directly with TrustyAI Custom Resources and the TrustyAI Operator
+
+== What You Can Use It For
+
+* **Test Language Models**: Run standard tests on language models
+* **Check Production Models**: Keep testing models that are running in production
+* **Research Work**: Build flexible testing workflows for ML research
+* **Team Workflows**: Set up testing that scales with Kubernetes
+
+== Next Steps
+
+* xref:installation.adoc[Install the SDK] and dependencies
+* Follow the xref:getting-started.adoc[Getting Started guide] for your first evaluation
+* Explore xref:kubernetes.adoc[Kubernetes integration] for scalable deployments
+* Review xref:examples-local.adoc[examples] for common use cases

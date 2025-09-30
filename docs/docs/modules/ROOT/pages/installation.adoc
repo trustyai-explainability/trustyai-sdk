@@ -1,0 +1,139 @@
+= Installation
+:navtitle: Installation
+
+This guide shows you how to install the TrustyAI SDK.
+
+== Requirements
+
+* Python 3.9 or higher
+* pip or poetry for package management
+* For Kubernetes features: kubectl and cluster access
+* For evaluation providers: Additional provider-specific dependencies
+
+== Basic Installation
+
+Install the core SDK:
+
+[source,bash]
+----
+pip install trustyai
+----
+
+== Full Installation with Testing Support
+
+Install with all testing tools and Kubernetes support:
+
+[source,bash]
+----
+pip install trustyai[eval]
+----
+
+This includes:
+
+* LM Evaluation Harness
+* RAGAS testing framework
+* Kubernetes client libraries
+* Validation tools
+
+== Provider-Specific Installation
+
+=== LM Evaluation Harness
+
+[source,bash]
+----
+pip install trustyai[lm-eval]
+----
+
+=== RAGAS
+
+[source,bash]
+----
+pip install trustyai[ragas]
+----
+
+=== Kubernetes Support
+
+[source,bash]
+----
+pip install trustyai[kubernetes]
+----
+
+== Development Installation
+
+For development and contributing:
+
+[source,bash]
+----
+git clone https://github.com/trustyai-explainability/trustyai-sdk.git
+cd trustyai-sdk
+pip install -e .[dev]
+----
+
+== Verification
+
+Verify your installation:
+
+[source,bash]
+----
+# Check CLI availability
+trustyai --version
+
+# List available providers
+trustyai eval list-providers
+
+# Verify Kubernetes integration (if applicable)
+trustyai validators list
+----
+
+== Docker Installation
+
+Run the SDK in a container:
+
+[source,bash]
+----
+docker run --rm -it \
+  -v ~/.kube:/root/.kube \
+  trustyai/sdk:latest \
+  trustyai eval list-providers
+----
+
+== Kubernetes Cluster Setup
+
+For Kubernetes-based evaluations, ensure the TrustyAI Operator is installed:
+
+[source,bash]
+----
+# Install TrustyAI Operator
+kubectl apply -f https://github.com/trustyai-explainability/trustyai-service-operator/releases/latest/download/trustyai-service-operator.yaml
+
+# Verify installation
+kubectl get pods -n trustyai-operator-system
+----
+
+== Troubleshooting
+
+=== Common Issues
+
+**Import Errors**:: Ensure you installed the correct extras: `pip install trustyai[eval]`
+**Kubernetes Connection**:: Verify kubectl configuration: `kubectl cluster-info`
+**Provider Dependencies**:: Some providers require additional system packages
+
+=== Environment Variables
+
+Configure optional environment variables:
+
+[source,bash]
+----
+# Kubernetes configuration
+export KUBECONFIG=/path/to/kubeconfig
+
+# Provider-specific settings
+export HF_HOME=/path/to/huggingface/cache
+export OPENAI_API_KEY=your-api-key
+----
+
+== Next Steps
+
+* Continue to xref:getting-started.adoc[Getting Started]
+* Review xref:cli-overview.adoc[CLI Reference]
+* Explore xref:kubernetes.adoc[Kubernetes Integration]

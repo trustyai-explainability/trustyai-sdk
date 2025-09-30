@@ -1,0 +1,183 @@
+= Kubernetes API
+:navtitle: Kubernetes API
+
+The TrustyAI SDK provides specialized APIs for working with Kubernetes and TrustyAI resources.
+
+== TrustyAI Kubernetes Client
+
+=== Basic Usage
+
+[source,python]
+----
+from trustyai.core.trustyai_kubernetes_client import TrustyAIKubernetesClient
+from trustyai.core.lmevaljob import LMEvalJob, LMEvalJobSpec, Metadata
+
+# Create client
+client = TrustyAIKubernetesClient()
+
+# Create job
+job = LMEvalJob(
+    metadata=Metadata(name="test-job", namespace="trustyai-eval"),
+    spec=LMEvalJobSpec(
+        model="hf",
+        modelArgs=[{"name": "pretrained", "value": "microsoft/DialoGPT-medium"}],
+        taskList={"taskNames": ["hellaswag"]},
+        limit="10"
+    )
+)
+
+# Submit to cluster
+submitted = client.submit(job)
+----
+
+=== Managing Resources
+
+[source,python]
+----
+# List all jobs
+jobs = client.list_resources(namespace="trustyai-eval", kind="LMEvalJob")
+
+# Get specific job
+job = client.get_resource("job-name", namespace="trustyai-eval")
+
+# Check status
+if job:
+    status = job.get_status()
+    print(f"Job state: {status.get('state')}")
+----
+
+=== Generating YAML
+
+[source,python]
+----
+# Generate YAML for kubectl
+yaml_content = client.generate_yaml(job)
+print(yaml_content)
+
+# Save to file
+client.save_yaml_to_file(job, "my-job.yaml")
+----
+
+== LMEvalJob Resources
+
+=== Creating Jobs
+
+[source,python]
+----
+from trustyai.core.lmevaljob import (
+    LMEvalJob, LMEvalJobSpec, Metadata,
+    ModelArg, TaskList
+)
+
+# Create metadata
+metadata = Metadata(
+    name="benchmark-test",
+    namespace="trustyai-eval"
+)
+
+# Create model arguments
+model_args = [
+    ModelArg(name="pretrained", value="microsoft/DialoGPT-medium")
+]
+
+# Create task list
+task_list = TaskList(taskNames=["hellaswag", "arc_easy"])
+
+# Create specification
+spec = LMEvalJobSpec(
+    model="hf",
+    modelArgs=model_args,
+    taskList=task_list,
+    logSamples=True,
+    allowOnline=True,
+    allowCodeExecution=True,
+    limit="50"
+)
+
+# Create job
+job = LMEvalJob(metadata=metadata, spec=spec)
+----
+
+=== Job Status Monitoring
+
+[source,python]
+----
+import asyncio
+import time
+
+async def wait_for_completion(submitted_job, timeout=300):
+    """Wait for job to complete and return results."""
+    start_time = time.time()
+
+    while time.time() - start_time < timeout:
+        status = submitted_job.get_status()
+        state = status.get("state", "").lower()
+
+        if state == "complete":
+            return submitted_job.get_results()
+        elif state in ["failed", "error"]:
+            raise Exception(f"Job failed: {status.get('message')}")
+
+        await asyncio.sleep(10)
+
+    raise TimeoutError("Job did not complete in time")
+
+# Usage
+results = await wait_for_completion(submitted_job)
+----
+
+== Integration with Provider API
+
+[source,python]
+----
+from trustyai.providers.eval.lm_eval_kubernetes import KubernetesLMEvalProvider
+from trustyai.core.eval import EvaluationProviderConfig, ExecutionMode
+
+async def run_kubernetes_test():
+    # Create provider
+    provider = KubernetesLMEvalProvider()
+
+    # Configure test
+    config = EvaluationProviderConfig(
+        evaluation_name="k8s-test",
+        model="microsoft/DialoGPT-medium",
+        tasks=["hellaswag"],
+        deployment_mode=ExecutionMode.KUBERNETES,
+        namespace="trustyai-eval",
+        cpu="2",
+        memory="4Gi",
+        limit=50,
+        deploy=True,
+        wait_for_completion=True
+    )
+
+    # Run test
+    results = await provider.evaluate(config)
+    return results
+
+# Execute
+results = asyncio.run(run_kubernetes_test())
+----
+
+== Error Handling
+
+[source,python]
+----
+try:
+    submitted = client.submit(job)
+    if not submitted:
+        print("Failed to submit job")
+except Exception as e:
+    print(f"Error submitting job: {e}")
+
+try:
+    status = submitted.get_status()
+except Exception as e:
+    print(f"Error getting status: {e}")
+----
+
+== Next Steps
+
+* Review xref:kubernetes.adoc[Kubernetes Integration] for setup
+* See xref:examples-kubernetes.adoc[Kubernetes Examples] for complete workflows
+* Check xref:api-core.adoc[Core API] for basic usage patterns
