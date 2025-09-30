@@ -35,6 +35,17 @@ __version__ = "1.0.0a1"
 from trustyai.core.providers import ProviderRegistry
 from trustyai.providers import Providers
 
+# Import core components
+from trustyai.core.lmevaljob import LMEvalJob
+from trustyai.providers.eval.utils import LMEvalJobBuilder
+
+# Import Kubernetes client
+try:
+    from trustyai.core.trustyai_kubernetes_client import TrustyAIKubernetesClient
+except ImportError:
+    # Kubernetes dependencies not available
+    pass
+
 # Try to import and register providers
 try:
     # Import LM Eval provider if available

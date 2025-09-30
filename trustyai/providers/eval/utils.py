@@ -122,16 +122,47 @@ class LMEvalJobBuilder:
         """Build and return the LMEvalJob instance."""
         return self.job
 
+    @staticmethod
+    def simple(name: str, model_name: str, tasks: list[str],
+               namespace: str = "default", limit: int | str | None = None) -> LMEvalJob:
+        """Create a simple LMEvalJob with basic configuration.
+
+        Args:
+            name: Name for the LMEvalJob
+            model_name: Pretrained model name
+            tasks: List of task names to evaluate
+            namespace: Kubernetes namespace (default: "default")
+            limit: Optional limit for evaluation samples
+
+        Returns:
+            Configured LMEvalJob instance
+        """
+        builder = (LMEvalJobBuilder(name)
+                  .namespace(namespace)
+                  .pretrained_model(model_name)
+                  .task_names(tasks))
+
+        if limit is not None:
+            builder = builder.limit(limit)
+
+        return builder.build()
+
 
 # Helper functions for common use cases
 def create_simple_lmeval_job(name: str, model_name: str, tasks: list[str],
-                           namespace: str = "default") -> LMEvalJob:
-    """Create a simple LMEvalJob with basic configuration."""
-    return (LMEvalJobBuilder(name)
-            .namespace(namespace)
-            .pretrained_model(model_name)
-            .task_names(tasks)
-            .build())
+                           namespace: str = "default", limit: int | str | None = None) -> LMEvalJob:
+    """Create a simple LMEvalJob with basic configuration.
+
+    .. deprecated:: 1.0.0
+        Use :meth:`LMEvalJobBuilder.simple` instead.
+    """
+    import warnings
+    warnings.warn(
+        "create_simple_lmeval_job is deprecated. Use LMEvalJobBuilder.simple() instead.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    return LMEvalJobBuilder.simple(name, model_name, tasks, namespace, limit)
 
 
 def create_task_card_json(task_card: TaskCard) -> str:
