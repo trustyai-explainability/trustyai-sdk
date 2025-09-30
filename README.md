@@ -1,9 +1,58 @@
 # TrustyAI SDK
 
+[![Documentation](https://img.shields.io/badge/docs-latest-blue.svg)](https://trustyai-explainability.github.io/trustyai-sdk)
 [![Ruff](https://github.com/trustyai-explainability/trustyai-sdk/actions/workflows/ruff.yml/badge.svg)](https://github.com/trustyai-explainability/trustyai-sdk/actions/workflows/ruff.yml)
 [![Tests](https://github.com/trustyai-explainability/trustyai-sdk/actions/workflows/pytest.yml/badge.svg)](https://github.com/trustyai-explainability/trustyai-sdk/actions/workflows/pytest.yml)
+[![PyPI version](https://badge.fury.io/py/trustyai.svg)](https://badge.fury.io/py/trustyai)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-A Python SDK for TrustyAI, providing tools for explaining, evaluating, and enhancing AI models.
+A Python toolkit for testing machine learning models. You can run tests on your computer or scale them up using Kubernetes.
+
+## ✨ Key Features
+
+- **🔄 Multiple Testing Tools**: Works with LM Evaluation Harness, RAGAS, and other testing tools
+- **☸️ Works with Kubernetes**: Scale up tests on Kubernetes with TrustyAI Operator
+- **🖥️ Run Anywhere**: Test models on your computer or spread across cluster nodes
+- **🛡️ Team Ready**: Built-in checks, monitoring, and works with OpenDataHub
+- **🎯 Easy to Use**: Command line tools and Python code for different workflows
+
+## 🚀 Quick Start
+
+### Local Testing
+
+```bash
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "microsoft/DialoGPT-medium" \
+  --tasks "hellaswag,arc_easy" \
+  --limit 10
+```
+
+### Kubernetes Testing
+
+```bash
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode kubernetes \
+  --model "microsoft/DialoGPT-medium" \
+  --tasks "hellaswag,arc_easy" \
+  --namespace trustyai-eval \
+  --cpu 4 \
+  --memory 8Gi \
+  --limit 50
+```
+
+## 📚 Documentation
+
+**📖 [Complete Documentation](https://trustyai-explainability.github.io/trustyai-sdk)**
+
+Quick links:
+- [Getting Started Guide](https://trustyai-explainability.github.io/trustyai-sdk/getting-started.html)
+- [Kubernetes Integration](https://trustyai-explainability.github.io/trustyai-sdk/kubernetes.html)
+- [CLI Reference](https://trustyai-explainability.github.io/trustyai-sdk/cli-eval.html)
+- [Examples](https://trustyai-explainability.github.io/trustyai-sdk/examples-local.html)
 
 ## Installation
 

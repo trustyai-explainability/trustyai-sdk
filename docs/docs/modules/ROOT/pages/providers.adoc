@@ -1,0 +1,340 @@
+= Evaluation Providers
+:navtitle: Evaluation Providers
+
+The TrustyAI SDK works with multiple testing tools, each built for specific use cases and model types. This page shows you what testing tools are available and what they can do.
+
+== Available Providers
+
+=== LM Evaluation Harness
+
+**Provider Name**: `lm-eval-harness`
+**Supported Modes**: Local, Kubernetes
+**Best For**: Standard tests, language model testing
+
+The LM Evaluation Harness provider works with the popular `lm-eval` library for testing language models.
+
+==== Supported Tasks
+
+* **Commonsense Reasoning**: hellaswag, arc_easy, arc_challenge
+* **Knowledge & QA**: mmlu, truthfulqa, openbookqa
+* **Reading Comprehension**: race, squad2
+* **Text Generation**: lambada, piqa
+* **And many more**: Use `trustyai eval list-datasets --provider lm-eval-harness`
+
+==== Usage Examples
+
+[source,bash]
+----
+# Basic evaluation
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "microsoft/DialoGPT-medium" \
+  --tasks "hellaswag,arc_easy" \
+  --limit 10
+
+# Kubernetes evaluation
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode kubernetes \
+  --model "meta-llama/Llama-2-7b-chat-hf" \
+  --tasks "mmlu,truthfulqa" \
+  --namespace trustyai-eval \
+  --cpu 8 \
+  --memory 16Gi \
+  --limit 100
+----
+
+=== RAGAS
+
+**Provider Name**: `ragas`
+**Supported Modes**: Local
+**Best For**: RAG (Retrieval-Augmented Generation) testing
+
+The RAGAS provider is built for testing Retrieval-Augmented Generation systems.
+
+==== Supported Metrics
+
+* **Faithfulness**: Checks if answers are factually correct
+* **Answer Relevancy**: Checks if responses are relevant
+* **Context Precision**: Checks how good the retrieval is
+* **Context Recall**: Checks how complete the retrieval is
+
+==== Usage Examples
+
+[source,bash]
+----
+# Create evaluation dataset
+cat > rag_data.json << EOF
+[
+  {
+    "question": "What is the capital of France?",
+    "answer": "The capital of France is Paris.",
+    "contexts": ["Paris is the capital and most populous city of France."],
+    "ground_truths": ["Paris"]
+  }
+]
+EOF
+
+# Run RAGAS evaluation
+trustyai eval execute \
+  --provider ragas \
+  --execution-mode local \
+  --model "openai/gpt-4" \
+  --tasks "faithfulness,answer_relevancy" \
+  --dataset rag_data.json
+----
+
+== Provider Configuration
+
+=== Environment Variables
+
+Each provider may require specific environment variables:
+
+[source,bash]
+----
+# Hugging Face models
+export HF_TOKEN=your_huggingface_token
+export HF_HOME=/path/to/cache
+
+# OpenAI models
+export OPENAI_API_KEY=your_openai_key
+
+# General settings
+export TRUSTYAI_CACHE_DIR=/path/to/cache
+----
+
+=== Custom Parameters
+
+Pass provider-specific parameters using the `--parameters` flag:
+
+[source,bash]
+----
+# LM Eval Harness parameters
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "microsoft/DialoGPT-medium" \
+  --tasks "hellaswag" \
+  --parameters '{
+    "batch_size": 8,
+    "use_cache": true,
+    "temperature": 0.7,
+    "max_length": 512
+  }'
+
+# RAGAS parameters
+trustyai eval execute \
+  --provider ragas \
+  --execution-mode local \
+  --model "openai/gpt-4" \
+  --tasks "faithfulness" \
+  --dataset rag_data.json \
+  --parameters '{
+    "temperature": 0.0,
+    "max_tokens": 100,
+    "embeddings_model": "openai/text-embedding-ada-002"
+  }'
+----
+
+== Model Support
+
+=== Hugging Face Models
+
+All providers support Hugging Face models:
+
+[source,bash]
+----
+# Various model sizes
+--model "microsoft/DialoGPT-small"
+--model "microsoft/DialoGPT-medium"
+--model "microsoft/DialoGPT-large"
+--model "meta-llama/Llama-2-7b-chat-hf"
+--model "meta-llama/Llama-2-13b-chat-hf"
+--model "meta-llama/Llama-2-70b-chat-hf"
+----
+
+=== OpenAI Models
+
+Supported through API integration:
+
+[source,bash]
+----
+# GPT models
+--model "openai/gpt-3.5-turbo"
+--model "openai/gpt-4"
+--model "openai/gpt-4-turbo"
+
+# Embedding models (for RAGAS)
+--model "openai/text-embedding-ada-002"
+----
+
+=== Local Models
+
+Load models from local paths:
+
+[source,bash]
+----
+--model "/path/to/local/model"
+--model "file:///absolute/path/to/model"
+----
+
+== Provider Comparison
+
+[cols="1,2,2,2", options="header"]
+|===
+|Provider |Best Use Case |Supported Tasks |Execution Modes
+
+|LM Eval Harness
+|Academic benchmarking, general LLM evaluation
+|80+ standard benchmarks
+|Local, Kubernetes
+
+|RAGAS
+|RAG system evaluation
+|4 specialized RAG metrics
+|Local
+
+|===
+
+== Creating Custom Providers
+
+=== Provider Interface
+
+Implement the base provider interface:
+
+[source,python]
+----
+from trustyai.providers.eval.base import EvaluationProviderBase
+from trustyai.core.eval import EvaluationProviderConfig
+
+class CustomProvider(EvaluationProviderBase):
+    @classmethod
+    def get_provider_name(cls) -> str:
+        return "custom-provider"
+
+    @property
+    def supported_deployment_modes(self) -> list[DeploymentMode]:
+        return [DeploymentMode.LOCAL]
+
+    def evaluate(self, config: EvaluationProviderConfig) -> dict:
+        # Implement evaluation logic
+        return {"results": {"custom_metric": 0.85}}
+----
+
+=== Registration
+
+Register your custom provider:
+
+[source,python]
+----
+from trustyai.core.registry import ProviderRegistry
+
+ProviderRegistry.register_provider("eval", "custom-provider", CustomProvider)
+----
+
+=== Plugin Architecture
+
+Create installable provider plugins:
+
+[source,python]
+.setup.py
+----
+from setuptools import setup, find_packages
+
+setup(
+    name="trustyai-custom-provider",
+    version="1.0.0",
+    packages=find_packages(),
+    entry_points={
+        "trustyai.providers.eval": [
+            "custom-provider = trustyai_custom_provider:CustomProvider",
+        ],
+    },
+    install_requires=[
+        "trustyai>=1.0.0",
+    ],
+)
+----
+
+== Best Practices
+
+=== Provider Selection
+
+Choose providers based on your evaluation needs:
+
+* **Academic Research**: Use LM Eval Harness for standardized benchmarks
+* **RAG Systems**: Use RAGAS for specialized retrieval evaluation
+* **Custom Metrics**: Implement custom providers for domain-specific evaluation
+
+=== Performance Optimization
+
+* **Batch Processing**: Use appropriate batch sizes for your hardware
+* **Model Caching**: Cache models to avoid repeated downloads
+* **Resource Allocation**: Match CPU/memory to model requirements
+
+=== Reproducibility
+
+* **Version Control**: Pin provider versions in requirements
+* **Seed Setting**: Use consistent random seeds for reproducible results
+* **Environment Documentation**: Document all environment variables and settings
+
+== Troubleshooting
+
+=== Common Issues
+
+**Provider Not Found**::
+[source,bash]
+----
+# Install provider dependencies
+pip install trustyai[eval]
+
+# List available providers
+trustyai eval list-providers
+----
+
+**Model Loading Errors**::
+[source,bash]
+----
+# Check model access
+python -c "from transformers import AutoTokenizer; AutoTokenizer.from_pretrained('model-name')"
+
+# Verify authentication
+echo $HF_TOKEN
+echo $OPENAI_API_KEY
+----
+
+**Memory Issues**::
+[source,bash]
+----
+# Reduce batch size
+--parameters '{"batch_size": 1}'
+
+# Use smaller model for testing
+--model "microsoft/DialoGPT-small"
+----
+
+=== Debug Mode
+
+Enable detailed logging:
+
+[source,bash]
+----
+# Set debug environment
+export TRUSTYAI_LOG_LEVEL=DEBUG
+
+# Run with verbose output
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "microsoft/DialoGPT-medium" \
+  --tasks "hellaswag" \
+  --limit 5 \
+  --force
+----
+
+== Next Steps
+
+* Explore provider-specific xref:examples-local.adoc[Local Examples]
+* Learn about xref:examples-kubernetes.adoc[Kubernetes Deployment]
+* Review xref:api-core.adoc[Core API Reference]

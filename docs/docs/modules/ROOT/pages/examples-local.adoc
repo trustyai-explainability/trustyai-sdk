@@ -1,0 +1,631 @@
+= Local Evaluation Examples
+:navtitle: Local Examples
+
+This section provides comprehensive examples for running model evaluations locally using the TrustyAI SDK.
+
+== Basic Examples
+
+=== Simple Language Model Evaluation
+
+[source,bash]
+----
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "microsoft/DialoGPT-medium" \
+  --tasks "hellaswag" \
+  --limit 10
+----
+
+Expected output:
+[source,json]
+----
+{
+  "provider": "lm-eval-harness",
+  "model": "microsoft/DialoGPT-medium",
+  "tasks": ["hellaswag"],
+  "results": {
+    "hellaswag": {
+      "acc": 0.6000,
+      "acc_stderr": 0.2191,
+      "acc_norm": 0.4000,
+      "acc_norm_stderr": 0.2191
+    }
+  },
+  "metadata": {
+    "timestamp": "2024-01-15T10:30:45Z",
+    "samples_evaluated": 10
+  }
+}
+----
+
+=== Multiple Task Evaluation
+
+[source,bash]
+----
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "microsoft/DialoGPT-medium" \
+  --tasks "hellaswag,arc_easy,arc_challenge" \
+  --limit 20 \
+  --output results.json \
+  --format json
+----
+
+== Academic Benchmarks
+
+=== Commonsense Reasoning
+
+[source,bash]
+----
+# HellaSwag - Commonsense reasoning
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "microsoft/DialoGPT-medium" \
+  --tasks "hellaswag" \
+  --limit 50
+
+# ARC - Science reasoning
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "microsoft/DialoGPT-medium" \
+  --tasks "arc_easy,arc_challenge" \
+  --limit 100
+----
+
+=== Knowledge and QA
+
+[source,bash]
+----
+# MMLU - Multitask Language Understanding
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "meta-llama/Llama-2-7b-chat-hf" \
+  --tasks "mmlu" \
+  --limit 200 \
+  --batch-size 4
+
+# TruthfulQA - Truthfulness evaluation
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "meta-llama/Llama-2-7b-chat-hf" \
+  --tasks "truthfulqa" \
+  --limit 100
+----
+
+=== Reading Comprehension
+
+[source,bash]
+----
+# RACE - Reading comprehension
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "microsoft/DialoGPT-large" \
+  --tasks "race" \
+  --limit 150
+
+# SQuAD2 - Question answering
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "microsoft/DialoGPT-large" \
+  --tasks "squad2" \
+  --limit 100
+----
+
+== Model Comparison
+
+=== Small vs Medium vs Large Models
+
+[source,bash]
+.model-comparison.sh
+----
+#!/bin/bash
+
+TASKS="hellaswag,arc_easy"
+LIMIT=50
+
+declare -a MODELS=(
+  "microsoft/DialoGPT-small"
+  "microsoft/DialoGPT-medium"
+  "microsoft/DialoGPT-large"
+)
+
+for model in "${MODELS[@]}"; do
+  echo "Evaluating $model..."
+
+  trustyai eval execute \
+    --provider lm-eval-harness \
+    --execution-mode local \
+    --model "$model" \
+    --tasks "$TASKS" \
+    --limit "$LIMIT" \
+    --output "results-$(basename $model).json"
+
+  echo "Completed $model"
+done
+
+echo "All evaluations completed!"
+----
+
+=== Different Model Families
+
+[source,bash]
+----
+# GPT-style models
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "microsoft/DialoGPT-medium" \
+  --tasks "hellaswag" \
+  --limit 50
+
+# LLaMA models
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "meta-llama/Llama-2-7b-chat-hf" \
+  --tasks "hellaswag" \
+  --limit 50
+
+# T5 models
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "google/flan-t5-base" \
+  --tasks "hellaswag" \
+  --limit 50
+----
+
+== OpenAI Models
+
+=== API-Based Evaluation
+
+First, set your API key:
+
+[source,bash]
+----
+export OPENAI_API_KEY=your-api-key-here
+----
+
+Then run evaluations:
+
+[source,bash]
+----
+# GPT-3.5 Turbo
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "openai/gpt-3.5-turbo" \
+  --tasks "hellaswag,arc_easy" \
+  --limit 20
+
+# GPT-4
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "openai/gpt-4" \
+  --tasks "mmlu,truthfulqa" \
+  --limit 50 \
+  --parameters '{"temperature": 0.0}'
+----
+
+== RAG Evaluation with RAGAS
+
+=== Basic RAG Evaluation
+
+Create a sample dataset:
+
+[source,bash]
+----
+cat > rag_evaluation.json << EOF
+[
+  {
+    "question": "What is the capital of France?",
+    "answer": "The capital of France is Paris, which is located in the north-central part of the country.",
+    "contexts": [
+      "Paris is the capital and most populous city of France.",
+      "Paris is located in the north-central part of France on the River Seine."
+    ],
+    "ground_truths": ["Paris"]
+  },
+  {
+    "question": "What is photosynthesis?",
+    "answer": "Photosynthesis is the process by which plants convert sunlight into energy.",
+    "contexts": [
+      "Photosynthesis is a process used by plants and other organisms to convert light energy into chemical energy.",
+      "During photosynthesis, plants take in carbon dioxide and water and produce glucose and oxygen."
+    ],
+    "ground_truths": ["Photosynthesis is the process by which plants convert light energy into chemical energy"]
+  }
+]
+EOF
+----
+
+Run RAGAS evaluation:
+
+[source,bash]
+----
+# Set OpenAI API key
+export OPENAI_API_KEY=your-api-key
+
+# Evaluate RAG system
+trustyai eval execute \
+  --provider ragas \
+  --execution-mode local \
+  --model "openai/gpt-4" \
+  --tasks "faithfulness,answer_relevancy,context_precision,context_recall" \
+  --dataset rag_evaluation.json \
+  --output rag_results.json
+----
+
+=== Custom RAG Parameters
+
+[source,bash]
+----
+trustyai eval execute \
+  --provider ragas \
+  --execution-mode local \
+  --model "openai/gpt-4" \
+  --tasks "faithfulness,answer_relevancy" \
+  --dataset rag_evaluation.json \
+  --parameters '{
+    "temperature": 0.0,
+    "max_tokens": 150,
+    "embeddings_model": "openai/text-embedding-ada-002"
+  }'
+----
+
+== Programmatic API Examples
+
+=== Basic Python Usage
+
+[source,python]
+----
+import asyncio
+from trustyai.providers.eval.lm_eval import LMEvalProvider
+from trustyai.core.eval import EvaluationProviderConfig, ExecutionMode
+
+async def run_evaluation():
+    # Initialize provider
+    provider = LMEvalProvider()
+
+    # Configure evaluation
+    config = EvaluationProviderConfig(
+        evaluation_name="test-eval",
+        model="microsoft/DialoGPT-medium",
+        tasks=["hellaswag", "arc_easy"],
+        deployment_mode=ExecutionMode.LOCAL,
+        limit=10,
+        batch_size=4
+    )
+
+    # Run evaluation
+    results = await provider.evaluate(config)
+
+    # Process results
+    for task, metrics in results["results"].items():
+        print(f"{task}: {metrics['acc']:.3f} ± {metrics['acc_stderr']:.3f}")
+
+# Run the evaluation
+asyncio.run(run_evaluation())
+----
+
+=== Batch Evaluation Script
+
+[source,python]
+----
+import asyncio
+import json
+from pathlib import Path
+from trustyai.providers.eval.lm_eval import LMEvalProvider
+from trustyai.core.eval import EvaluationProviderConfig, ExecutionMode
+
+async def evaluate_model(model_name, tasks, limit=50):
+    """Evaluate a single model on specified tasks."""
+    provider = LMEvalProvider()
+
+    config = EvaluationProviderConfig(
+        evaluation_name=f"eval-{model_name.replace('/', '-')}",
+        model=model_name,
+        tasks=tasks,
+        deployment_mode=ExecutionMode.LOCAL,
+        limit=limit
+    )
+
+    print(f"Evaluating {model_name}...")
+    results = await provider.evaluate(config)
+
+    # Save results
+    output_file = f"results-{model_name.replace('/', '-')}.json"
+    with open(output_file, 'w') as f:
+        json.dump(results, f, indent=2)
+
+    print(f"Results saved to {output_file}")
+    return results
+
+async def main():
+    """Run batch evaluation on multiple models."""
+    models = [
+        "microsoft/DialoGPT-small",
+        "microsoft/DialoGPT-medium",
+        "microsoft/DialoGPT-large"
+    ]
+
+    tasks = ["hellaswag", "arc_easy"]
+
+    results = {}
+    for model in models:
+        try:
+            result = await evaluate_model(model, tasks, limit=20)
+            results[model] = result
+        except Exception as e:
+            print(f"Error evaluating {model}: {e}")
+            results[model] = {"error": str(e)}
+
+    # Save summary
+    with open("evaluation_summary.json", 'w') as f:
+        json.dump(results, f, indent=2)
+
+    print("Batch evaluation completed!")
+
+if __name__ == "__main__":
+    asyncio.run(main())
+----
+
+== Advanced Configuration
+
+=== Custom Batch Sizes
+
+[source,bash]
+----
+# Small batch for large models
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "meta-llama/Llama-2-70b-chat-hf" \
+  --tasks "hellaswag" \
+  --limit 20 \
+  --batch-size 1
+
+# Large batch for small models
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "microsoft/DialoGPT-small" \
+  --tasks "arc_easy" \
+  --limit 100 \
+  --batch-size 16
+----
+
+=== Custom Parameters
+
+[source,bash]
+----
+# Temperature and generation settings
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "microsoft/DialoGPT-medium" \
+  --tasks "hellaswag" \
+  --limit 50 \
+  --parameters '{
+    "temperature": 0.7,
+    "max_length": 512,
+    "do_sample": true,
+    "top_p": 0.9
+  }'
+
+# Caching and device settings
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "microsoft/DialoGPT-medium" \
+  --tasks "arc_easy" \
+  --limit 100 \
+  --parameters '{
+    "device": "cuda",
+    "use_cache": true,
+    "cache_dir": "/tmp/eval_cache"
+  }'
+----
+
+== Output Analysis
+
+=== Processing JSON Results
+
+[source,python]
+----
+import json
+import pandas as pd
+
+# Load results
+with open('results.json', 'r') as f:
+    results = json.load(f)
+
+# Extract metrics for analysis
+data = []
+for task, metrics in results['results'].items():
+    for metric, value in metrics.items():
+        data.append({
+            'task': task,
+            'metric': metric,
+            'value': value,
+            'model': results['model']
+        })
+
+df = pd.DataFrame(data)
+
+# Summary statistics
+print(df.groupby(['task', 'metric'])['value'].describe())
+
+# Save to CSV
+df.to_csv('analysis.csv', index=False)
+----
+
+=== CSV Processing
+
+[source,bash]
+----
+# Generate CSV output
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "microsoft/DialoGPT-medium" \
+  --tasks "hellaswag,arc_easy" \
+  --limit 50 \
+  --output results.csv \
+  --format csv
+
+# Process with command-line tools
+cat results.csv | csvstat --mean --column value
+cat results.csv | csvgrep --column task --match hellaswag | csvstat
+----
+
+== Performance Optimization
+
+=== Memory Management
+
+[source,bash]
+----
+# Monitor memory usage
+export PYTHONPATH=/path/to/memory-profiler
+memory_profiler trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "meta-llama/Llama-2-7b-chat-hf" \
+  --tasks "hellaswag" \
+  --limit 10
+
+# Reduce memory usage
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "microsoft/DialoGPT-medium" \
+  --tasks "hellaswag" \
+  --limit 50 \
+  --batch-size 1 \
+  --parameters '{"device_map": "auto", "load_in_8bit": true}'
+----
+
+=== Caching Strategies
+
+[source,bash]
+----
+# Set cache directory
+export HF_HOME=/path/to/large/cache
+export TRUSTYAI_CACHE_DIR=/path/to/trustyai/cache
+
+# Pre-download models
+python -c "
+from transformers import AutoTokenizer, AutoModelForCausalLM
+model_name = 'microsoft/DialoGPT-medium'
+AutoTokenizer.from_pretrained(model_name)
+AutoModelForCausalLM.from_pretrained(model_name)
+print(f'Model {model_name} cached successfully')
+"
+
+# Run evaluation with cached model
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "microsoft/DialoGPT-medium" \
+  --tasks "hellaswag" \
+  --limit 100
+----
+
+== Troubleshooting
+
+=== Common Issues
+
+**Out of Memory Errors**:
+[source,bash]
+----
+# Reduce batch size
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "meta-llama/Llama-2-7b-chat-hf" \
+  --tasks "hellaswag" \
+  --limit 10 \
+  --batch-size 1
+
+# Use CPU instead of GPU
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "microsoft/DialoGPT-medium" \
+  --tasks "hellaswag" \
+  --limit 50 \
+  --parameters '{"device": "cpu"}'
+----
+
+**Model Download Issues**:
+[source,bash]
+----
+# Check network connectivity
+curl -I https://huggingface.co
+
+# Verify token
+echo $HF_TOKEN
+
+# Test model access
+python -c "
+from transformers import AutoTokenizer
+try:
+    AutoTokenizer.from_pretrained('microsoft/DialoGPT-medium')
+    print('Model accessible')
+except Exception as e:
+    print(f'Error: {e}')
+"
+----
+
+**Slow Evaluation**:
+[source,bash]
+----
+# Use GPU acceleration
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "microsoft/DialoGPT-medium" \
+  --tasks "hellaswag" \
+  --limit 100 \
+  --parameters '{"device": "cuda"}'
+
+# Increase batch size
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode local \
+  --model "microsoft/DialoGPT-medium" \
+  --tasks "hellaswag" \
+  --limit 100 \
+  --batch-size 8
+----
+
+== Best Practices
+
+=== Development Workflow
+
+1. **Start Small**: Use `--limit 5` for initial testing
+2. **Test Connectivity**: Verify model access before large evaluations
+3. **Monitor Resources**: Check memory and GPU usage
+4. **Save Results**: Always specify `--output` for reproducibility
+
+=== Production Considerations
+
+1. **Resource Planning**: Profile memory requirements for your models
+2. **Batch Optimization**: Tune batch sizes for your hardware
+3. **Error Handling**: Implement retry logic for network issues
+4. **Result Validation**: Verify results make sense for your use case
+
+== Next Steps
+
+* Explore xref:examples-kubernetes.adoc[Kubernetes Examples] for scaled evaluation
+* Review xref:providers.adoc[Evaluation Providers] for more options
+* Learn about xref:api-core.adoc[Programmatic API] for custom workflows

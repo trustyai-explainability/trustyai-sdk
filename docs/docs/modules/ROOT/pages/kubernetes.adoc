@@ -1,0 +1,401 @@
+= Kubernetes Integration
+:navtitle: Kubernetes Integration
+
+The TrustyAI SDK works with Kubernetes to run large model tests using the TrustyAI Operator and custom resources.
+
+== Overview
+
+The Kubernetes integration lets you:
+
+* **Scale Up Tests**: Spread test work across multiple cluster nodes
+* **Control Resources**: Set CPU/memory limits for test jobs
+* **Work with TrustyAI**: Direct support for TrustyAI Custom Resources
+* **Track Jobs**: Watch test status and get results in real-time
+* **Work with Teams**: Integrates with OpenDataHub and other team platforms
+
+== Architecture
+
+=== TrustyAI Kubernetes Client
+
+The SDK includes a Kubernetes client built for TrustyAI resources:
+
+[source,python]
+----
+from trustyai.core.trustyai_kubernetes_client import TrustyAIKubernetesClient
+from trustyai.core.lmevaljob import LMEvalJob, LMEvalJobSpec, Metadata
+
+# Initialize client
+client = TrustyAIKubernetesClient()
+
+# Create and submit evaluation job
+job = LMEvalJob(
+    metadata=Metadata(name="my-eval", namespace="trustyai-eval"),
+    spec=LMEvalJobSpec(
+        model="hf",
+        modelArgs=[{"name": "pretrained", "value": "microsoft/DialoGPT-medium"}],
+        taskList={"taskNames": ["hellaswag", "arc_easy"]},
+        limit="50"
+    )
+)
+
+# Submit to cluster
+submitted = client.submit(job)
+----
+
+=== Custom Resources
+
+The SDK uses TrustyAI Custom Resource Definitions (CRDs):
+
+==== LMEvalJob
+
+Main resource for language model testing:
+
+[source,yaml]
+----
+apiVersion: trustyai.opendatahub.io/v1alpha1
+kind: LMEvalJob
+metadata:
+  name: evaljob-example
+  namespace: trustyai-eval
+spec:
+  model: hf
+  modelArgs:
+    - name: pretrained
+      value: microsoft/DialoGPT-medium
+  taskList:
+    taskNames:
+      - hellaswag
+      - arc_easy
+  logSamples: true
+  allowOnline: true
+  allowCodeExecution: false
+  limit: "50"
+  resources:
+    requests:
+      cpu: "2"
+      memory: "4Gi"
+    limits:
+      cpu: "4"
+      memory: "8Gi"
+----
+
+== CLI Usage
+
+=== Basic Kubernetes Evaluation
+
+[source,bash]
+----
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode kubernetes \
+  --model "microsoft/DialoGPT-medium" \
+  --tasks "hellaswag,arc_easy" \
+  --namespace trustyai-eval \
+  --cpu 4 \
+  --memory 8Gi \
+  --limit 50
+----
+
+=== Resource Specifications
+
+Configure resource requirements:
+
+[source,bash]
+----
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode kubernetes \
+  --model "meta-llama/Llama-2-7b-hf" \
+  --tasks "mmlu,hellaswag" \
+  --namespace trustyai-eval \
+  --cpu 8 \
+  --memory 16Gi \
+  --limit 100 \
+  --image "custom-eval:latest"
+----
+
+=== Job Monitoring
+
+Monitor evaluation progress:
+
+[source,bash]
+----
+# Watch job status
+trustyai eval execute \
+  --provider lm-eval-harness \
+  --execution-mode kubernetes \
+  --model "microsoft/DialoGPT-medium" \
+  --tasks "hellaswag" \
+  --namespace trustyai-eval \
+  --watch
+
+# Check manually
+kubectl get lmevaljobs -n trustyai-eval
+kubectl logs -f job/evaljob-abc123 -n trustyai-eval
+----
+
+== Programmatic API
+
+=== Creating Evaluation Jobs
+
+[source,python]
+----
+from trustyai.providers.eval.lm_eval_kubernetes import KubernetesLMEvalProvider
+from trustyai.core.eval import EvaluationProviderConfig, ExecutionMode
+
+# Initialize provider
+provider = KubernetesLMEvalProvider()
+
+# Configure evaluation
+config = EvaluationProviderConfig(
+    evaluation_name="benchmark-eval",
+    model="microsoft/DialoGPT-medium",
+    tasks=["hellaswag", "arc_easy"],
+    deployment_mode=ExecutionMode.KUBERNETES,
+    namespace="trustyai-eval",
+    cpu="4",
+    memory="8Gi",
+    limit=50,
+    deploy=True,
+    wait_for_completion=True
+)
+
+# Execute evaluation
+results = await provider.evaluate(config)
+print(f"Status: {results['status']}")
+----
+
+=== Resource Management
+
+[source,python]
+----
+from trustyai.core.trustyai_kubernetes_client import TrustyAIKubernetesClient
+
+client = TrustyAIKubernetesClient()
+
+# List all evaluation jobs
+jobs = client.list_resources(namespace="trustyai-eval", kind="LMEvalJob")
+
+# Get specific job
+job = client.get_resource("evaljob-abc123", namespace="trustyai-eval")
+
+# Monitor job status
+if job:
+    status = job.get_status()
+    print(f"State: {status.get('state')}")
+
+    # Get results when complete
+    if status.get('state') == 'Complete':
+        results = job.get_results()
+        print(results)
+----
+
+== Cluster Setup
+
+=== Prerequisites
+
+. **TrustyAI Operator**: Install the TrustyAI Service Operator
+. **Namespace**: Create dedicated namespace for evaluations
+. **RBAC**: Configure service accounts and permissions
+. **Storage**: Persistent volumes for model caching (optional)
+
+=== TrustyAI Operator Installation
+
+[source,bash]
+----
+# Install operator
+kubectl apply -f https://github.com/trustyai-explainability/trustyai-service-operator/releases/latest/download/trustyai-service-operator.yaml
+
+# Verify installation
+kubectl get pods -n trustyai-operator-system
+
+# Check CRDs
+kubectl get crd | grep trustyai
+----
+
+=== Namespace Setup
+
+[source,bash]
+----
+# Create evaluation namespace
+kubectl create namespace trustyai-eval
+
+# Apply resource quotas (optional)
+kubectl apply -f - <<EOF
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: eval-quota
+  namespace: trustyai-eval
+spec:
+  hard:
+    requests.cpu: "20"
+    requests.memory: 40Gi
+    limits.cpu: "40"
+    limits.memory: 80Gi
+    persistentvolumeclaims: "10"
+EOF
+----
+
+=== Model Storage
+
+Configure shared model storage:
+
+[source,yaml]
+----
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: model-cache
+  namespace: trustyai-eval
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: nfs-client
+----
+
+== Security and RBAC
+
+=== Service Account
+
+[source,yaml]
+----
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: trustyai-eval
+  namespace: trustyai-eval
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: trustyai-eval
+  namespace: trustyai-eval
+rules:
+- apiGroups: ["trustyai.opendatahub.io"]
+  resources: ["lmevaljobs"]
+  verbs: ["get", "list", "create", "update", "patch", "delete"]
+- apiGroups: [""]
+  resources: ["pods", "pods/log"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: trustyai-eval
+  namespace: trustyai-eval
+subjects:
+- kind: ServiceAccount
+  name: trustyai-eval
+  namespace: trustyai-eval
+roleRef:
+  kind: Role
+  name: trustyai-eval
+  apiGroup: rbac.authorization.k8s.io
+----
+
+=== Network Policies
+
+Restrict network access:
+
+[source,yaml]
+----
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: trustyai-eval-policy
+  namespace: trustyai-eval
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+  egress:
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443  # HTTPS for model downloads
+    - protocol: TCP
+      port: 80   # HTTP for some model repositories
+----
+
+== Troubleshooting
+
+=== Common Issues
+
+**Pod Scheduling Failures**::
+Check resource availability and node selectors:
+[source,bash]
+----
+kubectl describe pod evaljob-abc123 -n trustyai-eval
+kubectl get nodes -o wide
+----
+
+**Image Pull Errors**::
+Verify image access and pull secrets:
+[source,bash]
+----
+kubectl get events -n trustyai-eval
+kubectl describe pod evaljob-abc123 -n trustyai-eval
+----
+
+**CRD Not Found**::
+Ensure TrustyAI Operator is properly installed:
+[source,bash]
+----
+kubectl get crd lmevaljobs.trustyai.opendatahub.io
+kubectl get pods -n trustyai-operator-system
+----
+
+=== Debugging
+
+Enable debug logging:
+
+[source,python]
+----
+import logging
+logging.basicConfig(level=logging.DEBUG)
+
+# Provider will show detailed debug information
+provider = KubernetesLMEvalProvider()
+----
+
+Check operator logs:
+
+[source,bash]
+----
+kubectl logs -n trustyai-operator-system \
+  deployment/trustyai-service-operator-controller-manager -f
+----
+
+== Best Practices
+
+=== Resource Management
+
+* **Set appropriate resource limits** to prevent cluster resource exhaustion
+* **Use node selectors** for GPU-enabled evaluations
+* **Implement resource quotas** at namespace level
+* **Monitor cluster resource usage** during large evaluations
+
+=== Job Configuration
+
+* **Use meaningful job names** for easier tracking
+* **Set appropriate timeouts** for long-running evaluations
+* **Enable result persistence** for audit trails
+* **Configure retry policies** for transient failures
+
+=== Security
+
+* **Use dedicated service accounts** with minimal required permissions
+* **Implement network policies** to restrict pod communication
+* **Scan container images** for vulnerabilities
+* **Rotate credentials** regularly
+
+== Next Steps
+
+* Explore xref:examples-kubernetes.adoc[Kubernetes Examples]
+* Review xref:api-kubernetes.adoc[Kubernetes API Reference]
+* Learn about xref:providers.adoc[Evaluation Providers]

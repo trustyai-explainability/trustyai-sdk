@@ -1,0 +1,22 @@
+name: trustyai-sdk
+title: TrustyAI SDK
+version: main
+start_page: ROOT:index.adoc
+nav:
+- modules/ROOT/nav.adoc
+asciidoc:
+  attributes:
+    source-language: python
+    listing-caption: Listing
+    preface-title: Preface
+    appendix-caption: Appendix
+    caution-caption: Caution
+    example-caption: Example
+    figure-caption: Figure
+    important-caption: Important
+    note-caption: Note
+    table-caption: Table
+    tip-caption: Tip
+    toc-title: Table of Contents
+    warning-caption: Warning
+    version-label: Version
